@@ -27,7 +27,8 @@ double starLikelihood(const std::vector<std::vector<int>>&,
 double starLikelihood(const std::vector<std::vector<int>>&,
                       const std::vector<std::unique_ptr<bpp::SubstitutionModel>>&,
                       const std::vector<std::unique_ptr<bpp::DiscreteDistribution>>&,
-                      const std::vector<Sequence>&);
+                      const std::vector<Sequence>&,
+                      const double hky85KappaPrior=-1.0);
 
 /// \brief estimate branch lengths
 void estimateBranchLengths(const std::vector<std::vector<int>>&,
@@ -38,6 +39,7 @@ size_t optimize(const std::vector<std::vector<int>>&,
                 std::vector<std::unique_ptr<bpp::SubstitutionModel>>&,
                 std::vector<std::unique_ptr<bpp::DiscreteDistribution>>&,
                 std::vector<Sequence>&,
+                const double hky85KappaPrior=-1.0,
                 const bool verbose = true);
 }
 #endif

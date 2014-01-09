@@ -195,6 +195,7 @@ int main(const int argc, const char** argv)
 
     std::string input_path, output_path, model_name = "GTR", rate_dist_name = "Constant";
     bool no_branch_lengths = false;
+    double hky85KappaPrior = -1;
 
     // command-line parsing
     po::options_description desc("Allowed options");
@@ -205,6 +206,7 @@ int main(const int argc, const char** argv)
     ("output-file,o", po::value(&output_path)->required(), "output file [required]")
     ("model,m", po::value(&model_name), "model [default: GTR]")
     ("rate-dist,r", po::value(&rate_dist_name), "rate distribution [default: constant]")
+    ("kappa-prior,k", po::value(&hky85KappaPrior), "Prior on HKY85 kappa [default: None]")
     ("no-branch-lengths", po::bool_switch(&no_branch_lengths), "*do not* include fit branch lengths in output");
 
     po::variables_map vm;
@@ -218,6 +220,10 @@ int main(const int argc, const char** argv)
     if(vm.count("version")) {
         std::cout << gtr_fit::GTR_FIT_VERSION << '\n';
         return 0;
+    }
+
+    if(vm.count("kappa-prior") && model_name != "HKY85") {
+        std::cerr << "kappa prior is not compatible with model " << model_name << '\n';
     }
 
     po::notify(vm);
@@ -248,9 +254,9 @@ int main(const int argc, const char** argv)
         }
     }
 
-    star_optim::optimize(beagleInstances, models, rates, sequences);
+    star_optim::optimize(beagleInstances, models, rates, sequences, hky85KappaPrior);
 
-    const double finalLike = star_optim::starLikelihood(beagleInstances, models, rates, sequences);
+    const double finalLike = star_optim::starLikelihood(beagleInstances, models, rates, sequences, hky85KappaPrior);
     std::cout << "final log-like: " << finalLike << '\n';
 
     std::ofstream out(output_path);

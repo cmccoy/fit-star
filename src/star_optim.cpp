@@ -195,7 +195,8 @@ int createBeagleInstance(const bpp::SubstitutionModel& model,
 double starLikelihood(const std::vector<std::vector<int>>& instances,
                       const std::vector<std::unique_ptr<bpp::SubstitutionModel>>& model,
                       const std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
-                      const std::vector<Sequence>& sequences)
+                      const std::vector<Sequence>& sequences,
+                      const double hky85KappaPrior)
 {
     double result = 0.0;
 
@@ -208,9 +209,9 @@ double starLikelihood(const std::vector<std::vector<int>>& instances,
     double prior = 0.0;
     for(size_t i = 0; i < model.size(); i++) {
         result += starLikelihood(instances, sequences, i);
-        assert(model[i]->hasParameter("kappa"));
-        if(model[i]->hasParameter("kappa")) {
-            boost::math::lognormal_distribution<double> distn(1, 1.25);
+        if(hky85KappaPrior > 0.0) {
+            assert(model[i]->hasParameter("kappa") && "Model does not have kappa?");
+            boost::math::lognormal_distribution<double> distn(1, hky85KappaPrior);
             prior += std::log(boost::math::pdf(distn, model[i]->getParameterValue("kappa")));
         }
     }
@@ -296,6 +297,7 @@ struct NlOptParams {
     std::vector<std::unique_ptr<bpp::SubstitutionModel>>* model;
     std::vector<std::unique_ptr<bpp::DiscreteDistribution>>* rates;
     const std::vector<std::vector<int>>* instances;
+    const double hky85KappaPrior;
 };
 
 double nlLogLike(const std::vector<double>& x, std::vector<double>& grad, void* data)
@@ -308,7 +310,7 @@ double nlLogLike(const std::vector<double>& x, std::vector<double>& grad, void* 
         params->paramList->operator[](i).setValue(x[i]);
     }
 
-    return starLikelihood(*params->instances, *params->model, *params->rates, *params->sequences);
+    return starLikelihood(*params->instances, *params->model, *params->rates, *params->sequences, params->hky85KappaPrior);
 }
 
 /// \brief Optimize the model & branch lengths distribution for a collection of sequences
@@ -316,9 +318,10 @@ size_t optimize(const std::vector<std::vector<int>>& beagleInstances,
                 std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
                 std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
                 std::vector<Sequence>& sequences,
+                const double hky85KappaPrior,
                 const bool verbose)
 {
-    double lastLogLike = starLikelihood(beagleInstances, models, rates, sequences);
+    double lastLogLike = starLikelihood(beagleInstances, models, rates, sequences, hky85KappaPrior);
 
     if(verbose) {
         std::clog << "initial: " << lastLogLike << "\n";
@@ -347,7 +350,7 @@ size_t optimize(const std::vector<std::vector<int>>& beagleInstances,
             // First, substitution model
             nlopt::opt opt(nlopt::LN_BOBYQA, nParam);
             //nlopt::opt opt(nlopt::LN_COBYLA, nParam);
-            NlOptParams optParams { &sequences, &params, &models, &rates, &beagleInstances };
+            NlOptParams optParams { &sequences, &params, &models, &rates, &beagleInstances, hky85KappaPrior };
             opt.set_max_objective(nlLogLike, &optParams);
 
             std::vector<double> lowerBounds(nParam, -std::numeric_limits<double>::max());
@@ -404,7 +407,7 @@ size_t optimize(const std::vector<std::vector<int>>& beagleInstances,
 
         // then, branch lengths
         estimateBranchLengths(beagleInstances, sequences);
-        logLike = starLikelihood(beagleInstances, models, rates, sequences);
+        logLike = starLikelihood(beagleInstances, models, rates, sequences, hky85KappaPrior);
 
         if(verbose) {
             std::clog << "iteration " << iter << " (branch lengths): " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
