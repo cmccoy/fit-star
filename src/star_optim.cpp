@@ -342,7 +342,7 @@ size_t optimize(const std::vector<std::vector<int>>& beagleInstances,
             }
             for(const std::string& s : r->getParameters().getParameterNames()) {
                 // fix the rate in position 1 at 1.0
-                if(idx != 0 || s != "Constant.value")
+                if(idx != 0 || (s != "Constant.value" && s != "Gamma.beta"))
                     params.push_back(Parameter { static_cast<bpp::Parametrizable*>(r), r->getParameterNameWithoutNamespace(s) });
             }
             const size_t nParam = params.size();

@@ -163,16 +163,17 @@ void writeResults(std::ostream& out,
         Json::Value pNode(Json::arrayValue);
 
         const auto& pt = model.getPij_t(meanBranchLength);
+        //const auto& sij = model.getExchangeabilityMatrix();
         for(size_t i = 0; i < model.getNumberOfStates(); i++) {
             for(size_t j = 0; j < model.getNumberOfStates(); j++) {
                 qNode.append(model.Qij(i, j));
-                //sNode.append(model.Sij(i, j));
+                //sNode.append(sij(i, j));
                 pNode.append(pt(static_cast<unsigned int>(i), static_cast<unsigned int>(j)));
             }
         }
         modelNode["Q"] = qNode;
         //modelNode["S"] = sNode;
-        modelNode["P_mean"] = pNode;
+        modelNode["Pmean"] = pNode;
         partitionsNode.append(modelNode);
     }
 
@@ -257,7 +258,7 @@ int main(const int argc, const char** argv)
     star_optim::optimize(beagleInstances, models, rates, sequences, hky85KappaPrior);
 
     const double finalLike = star_optim::starLikelihood(beagleInstances, models, rates, sequences, hky85KappaPrior);
-    std::cout << "final log-like: " << finalLike << '\n';
+    std::clog << "final log-like: " << finalLike << '\n';
 
     std::ofstream out(output_path);
     writeResults(out, models, rates, sequences, finalLike, !no_branch_lengths);
