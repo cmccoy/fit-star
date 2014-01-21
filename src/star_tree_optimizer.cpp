@@ -287,7 +287,7 @@ size_t StarTreeOptimizer::optimize(const bool verbose)
             std::vector<Parameter> params;
             bpp::SubstitutionModel* model = models_[idx].get();
             bpp::DiscreteDistribution* r = rates_[idx].get();
-            for(const std::string& s : model->getParameters().getParameterNames()) {
+            for(const std::string& s : model->getIndependentParameters().getParameterNames()) {
                 params.push_back(Parameter { static_cast<bpp::Parametrizable*>(model), model->getParameterNameWithoutNamespace(s) });
             }
             for(const std::string& s : r->getIndependentParameters().getParameterNames()) {
@@ -307,11 +307,12 @@ size_t StarTreeOptimizer::optimize(const bool verbose)
             std::vector<double> upperBounds(nParam, std::numeric_limits<double>::max());
             for(size_t i = 0; i < params.size(); i++) {
                 bpp::Parameter bp = params[i].source->getParameter(params[i].parameterName);
-                // Rate-related hack
+                // Rate-related hacks
                 if(params[i].parameterName == "value") {
                     lowerBounds[i] = 1e-6;
                     upperBounds[i] = 20;
                 } else if (params[i].parameterName == "alpha") {
+                    // The Bio++ implementation fails at small alpha
                     lowerBounds[i] = 0.3;
                     upperBounds[i] = 20;
                 } else if(!bp.hasConstraint())
