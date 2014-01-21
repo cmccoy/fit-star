@@ -138,6 +138,9 @@ void updateBeagleInstance(const int instance,
     for(int i = 0; i < r.size(); i++)
         r[i] = r[i] / expectation;
 
+    const double normExpectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
+    assert(std::abs(normExpectation - 1.0) < 1e-5 && "Expected rate is not 1.0");
+
     // Fill rates
     beagleSetCategoryRates(instance, r.data());
     beagleSetCategoryWeights(instance, 0, p.data());
@@ -349,7 +352,7 @@ size_t optimize(const std::vector<std::vector<int>>& beagleInstances,
             }
             for(const std::string& s : r->getParameters().getParameterNames()) {
                 // fix the rate in position 1 at 1.0
-                if(idx != 0 || (s != "Constant.value" && s != "Gamma.beta"))
+                if((idx != 0 || s != "Constant.value") && s != "Gamma.beta")
                     params.push_back(Parameter { static_cast<bpp::Parametrizable*>(r), r->getParameterNameWithoutNamespace(s) });
             }
             const size_t nParam = params.size();
