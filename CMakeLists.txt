@@ -7,8 +7,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/lib/cmake/cxx11/Modules")
 include(GetGitRevisionDescription)
 git_describe(GIT_DESCRIPTION --always --long)
 configure_file (
-  "${PROJECT_SOURCE_DIR}/src/gtrfit_config.h.in"
-  "${PROJECT_SOURCE_DIR}/src/gtrfit_config.h")
+  "${PROJECT_SOURCE_DIR}/src/fit_star_config.h.in"
+  "${PROJECT_SOURCE_DIR}/src/fit_star_config.h")
 
 include(FindCXXFeatures)
 

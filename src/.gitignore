@@ -1,4 +1,4 @@
 /fit_gtr
 /build_mutation_matrices
 *.o
-/gtrfit_config.h
+/fit_star_config.h

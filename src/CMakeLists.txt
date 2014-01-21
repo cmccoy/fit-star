@@ -24,14 +24,14 @@ target_link_libraries(libstaropt protobuf z c pthread bam nlopt bpp-phyl bpp-cor
                       ${HMS_BEAGLE_LIBRARIES})
 
 # Build mutation matrices
-add_executable(build_mutation_matrices
+add_executable(build-mutation-matrices
   build_mutation_matrices.cpp
   mutationio.pb.cc)
-target_link_libraries(build_mutation_matrices libstaropt)
-target_link_libraries(build_mutation_matrices boost-programoptions)
+target_link_libraries(build-mutation-matrices libstaropt)
+target_link_libraries(build-mutation-matrices boost-programoptions)
 
-# GTR fitting
-add_executable(fit_star fit_star.cpp)
-target_link_libraries(fit_star boost-programoptions libstaropt)
-target_link_libraries(fit_star json)
-target_link_libraries(fit_star nlopt)
+# model fitting
+add_executable(fit-star fit_star.cpp)
+target_link_libraries(fit-star boost-programoptions libstaropt)
+target_link_libraries(fit-star json)
+target_link_libraries(fit-star nlopt)

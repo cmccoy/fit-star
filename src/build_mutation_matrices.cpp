@@ -16,7 +16,7 @@
 #include <google/protobuf/io/gzip_stream.h>
 
 #include "mutationio.pb.h"
-#include "gtrfit_config.h"
+#include "fit_star_config.h"
 
 namespace po = boost::program_options;
 namespace protoio = google::protobuf::io;
@@ -111,7 +111,8 @@ int main(int argc, char* argv[])
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-    std::string fastaPath, bamPath, outputPath;
+    std::string fastaPath, outputPath;
+    std::vector<std::string> bamPaths;
 
     bool no_ambiguous = false;
     bool by_codon = false;
@@ -125,7 +126,7 @@ int main(int argc, char* argv[])
     ("by-codon", po::bool_switch(&by_codon), "Partition by codon")
     ("max-records,n", po::value<size_t>(&maxRecords), "Maximum number of records to parse")
     ("input-fasta,f", po::value<std::string>(&fastaPath)->required(), "Path to (indexed) FASTA file")
-    ("input-bam,i", po::value<std::string>(&bamPath)->required(), "Path to BAM")
+    ("input-bam,i", po::value<std::vector<std::string>>(&bamPaths)->required(), "Path to BAM(s)")
     ("output-file,o", po::value<std::string>(&outputPath)->required(), "Path to output file");
 
     po::variables_map vm;
@@ -136,7 +137,7 @@ int main(int argc, char* argv[])
         return 0;
     }
     if(vm.count("version")) {
-        std::cout << gtr_fit::GTR_FIT_VERSION << '\n';
+        std::cout << star_fit::GTR_FIT_VERSION << '\n';
         return 0;
     }
 
@@ -145,13 +146,8 @@ int main(int argc, char* argv[])
     faidx_t* fidx = fai_load(fastaPath.c_str());
     assert(fidx != NULL && "Failed to load FASTA index");
 
-    SamFile in(bamPath);
-
     bam1_t* b = bam_init1();
     size_t processed = 0;
-
-    std::vector<std::string> targetBases(in.fp->header->n_targets);
-    std::vector<int> targetLen(in.fp->header->n_targets);
 
     std::fstream out(outputPath, std::ios::out | std::ios::trunc | std::ios::binary);
     protoio::OstreamOutputStream rawOut(&out);
@@ -161,25 +157,29 @@ int main(int argc, char* argv[])
         outptr = &zipOut;
     protoio::CodedOutputStream codedOut(outptr);
 
-    while(samread(in.fp, b) >= 0) {
-        if(maxRecords > 0 && processed > maxRecords)
-            break;
-        processed++;
-        const char* target_name = in.fp->header->target_name[b->core.tid];
-        if(targetBases[b->core.tid].empty()) {
-            char* ref = fai_fetch(fidx, target_name, &targetLen[b->core.tid]);
-            assert(ref != nullptr && "Missing reference");
-            targetBases[b->core.tid] = ref;
-            free(ref);
+    for(const std::string& bamPath : bamPaths) {
+        SamFile in(bamPath);
+        std::vector<std::string> targetBases(in.fp->header->n_targets);
+        std::vector<int> targetLen(in.fp->header->n_targets);
+        while(samread(in.fp, b) >= 0) {
+            if(maxRecords > 0 && processed > maxRecords)
+                break;
+            processed++;
+            const char* target_name = in.fp->header->target_name[b->core.tid];
+            if(targetBases[b->core.tid].empty()) {
+                char* ref = fai_fetch(fidx, target_name, &targetLen[b->core.tid]);
+                assert(ref != nullptr && "Missing reference");
+                targetBases[b->core.tid] = ref;
+                free(ref);
+            }
+
+            const std::string& ref = targetBases[b->core.tid];
+
+            mutationio::MutationCount count = mutationCountOfSequence(b, ref, no_ambiguous, by_codon);
+
+            codedOut.WriteVarint32(count.ByteSize());
+            count.SerializeWithCachedSizes(&codedOut);
         }
-
-        const std::string& ref = targetBases[b->core.tid];
-
-        mutationio::MutationCount count = mutationCountOfSequence(b, ref, no_ambiguous, by_codon);
-
-        codedOut.WriteVarint32(count.ByteSize());
-        count.SerializeWithCachedSizes(&codedOut);
-
     }
 
     bam_destroy1(b);

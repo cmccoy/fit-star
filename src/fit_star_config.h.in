@@ -3,7 +3,7 @@
 
 #include <string>
 
-namespace gtr_fit {
+namespace star_fit {
 const std::string GTR_FIT_VERSION = "@GIT_DESCRIPTION@";
 }
 

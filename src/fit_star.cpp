@@ -15,7 +15,7 @@
 #include <json/json.h>
 #include <json/value.h>
 
-#include "gtrfit_config.h"
+#include "fit_star_config.h"
 #include "star_optim.hpp"
 #include "sequence.hpp"
 
@@ -219,7 +219,7 @@ int main(const int argc, const char** argv)
         return 0;
     }
     if(vm.count("version")) {
-        std::cout << gtr_fit::GTR_FIT_VERSION << '\n';
+        std::cout << star_fit::GTR_FIT_VERSION << '\n';
         return 0;
     }
 
