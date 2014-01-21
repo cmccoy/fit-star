@@ -148,6 +148,14 @@ void writeResults(std::ostream& out,
         for(size_t i = 0; i < p.size(); i++) {
             rateNode[p[i].getName()] = p[i].getValue();
         }
+        Json::Value rateRates(Json::arrayValue);
+        Json::Value rateProbs(Json::arrayValue);
+        for(unsigned int i = 0; i < r.getNumberOfCategories(); i++) {
+            rateRates.append(r.getCategory(i));
+            rateProbs.append(r.getProbability(i));
+        }
+        rateNode["rates"] = rateRates;
+        rateNode["probabilities"] = rateProbs;
         modelNode["rate"] = rateNode;
 
         for(size_t i = 0; i < model.getNumberOfStates(); i++) {
