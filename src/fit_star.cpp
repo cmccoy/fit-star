@@ -39,15 +39,13 @@ namespace po = boost::program_options;
 
 const bpp::DNA DNA;
 
-std::vector<Sequence> loadSequencesFromFile(const std::string& path)
+void loadSequencesFromFile(const std::string& file_path, std::vector<Sequence>& dest)
 {
-    std::fstream in(path, std::ios::in | std::ios::binary);
-    std::clog << "Loading from " << path << '\n';
+    std::fstream in(file_path, std::ios::in | std::ios::binary);
+    std::clog << "Loading from " << file_path << '\n';
     assert(in.good() && "Input stream is not good.");
     google::protobuf::io::IstreamInputStream raw_in(&in);
     google::protobuf::io::GzipInputStream zip_in(&raw_in);
-
-    std::vector<Sequence> sequences;
 
     while(true) {
         google::protobuf::io::CodedInputStream coded_in(&zip_in);
@@ -79,9 +77,8 @@ std::vector<Sequence> loadSequencesFromFile(const std::string& path)
         //d = 1e-3;
         sequence.distance = 0.1;
 
-        sequences.push_back(std::move(sequence));
+        dest.push_back(std::move(sequence));
     }
-    return sequences;
 }
 
 std::unique_ptr<bpp::SubstitutionModel> substitutionModelForName(const std::string& name)
@@ -194,7 +191,8 @@ int main(const int argc, const char** argv)
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-    std::string input_path, output_path, model_name = "GTR", rate_dist_name = "Constant";
+    std::string output_path, model_name = "GTR", rate_dist_name = "Constant";
+    std::vector<std::string> input_paths;
     bool no_branch_lengths = false;
     double hky85KappaPrior = -1;
 
@@ -203,7 +201,8 @@ int main(const int argc, const char** argv)
     desc.add_options()
     ("help,h", "Produce help message")
     ("version,v", "Show version")
-    ("input-file,i", po::value(&input_path)->required(), "input file [required]")
+    ("input-file,i", po::value(&input_paths)->required(),
+     "input file(s) - output of build-mutation-matrices [required]")
     ("output-file,o", po::value(&output_path)->required(), "output file [required]")
     ("model,m", po::value(&model_name), "model [default: GTR]")
     ("rate-dist,r", po::value(&rate_dist_name), "rate distribution [default: constant]")
@@ -224,12 +223,16 @@ int main(const int argc, const char** argv)
     }
 
     if(vm.count("kappa-prior") && model_name != "HKY85") {
-        std::cerr << "kappa prior is not compatible with model " << model_name << '\n';
+        std::clog << "kappa prior is not compatible with model " << model_name << '\n';
+        return 1;
     }
 
     po::notify(vm);
 
-    std::vector<Sequence> sequences = loadSequencesFromFile(input_path);
+    std::vector<Sequence> sequences;
+    for(const std::string& path : input_paths) {
+        loadSequencesFromFile(path, sequences);
+    }
 
     const size_t nPartitions = sequences[0].substitutions.size();
     for(const Sequence& sequence : sequences) {
