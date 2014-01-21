@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <vector>
 #include <iostream>
 #include "gtest/gtest.h"
 #include "star_optim.hpp"
@@ -9,8 +11,10 @@
 
 #include <Bpp/Numeric/Prob/ConstantDistribution.h>
 #include <Bpp/Numeric/Prob/GammaDiscreteDistribution.h>
+#include <Bpp/Numeric/Prob/SimpleDiscreteDistribution.h>
 #include <Bpp/Phyl/Distance/DistanceEstimation.h>
-#include <Bpp/Phyl/Likelihood/DRHomogeneousTreeLikelihood.h>
+#include <Bpp/Phyl/Likelihood/RHomogeneousTreeLikelihood.h>
+#include <Bpp/Phyl/Likelihood/DiscreteRatesAcrossSitesTreeLikelihood.h>
 #include <Bpp/Phyl/Model.all>
 #include <Bpp/Phyl/TreeTemplate.h>
 #include <Bpp/Seq/Alphabet/DNA.h>
@@ -57,6 +61,13 @@ void checkAgainstBpp(const std::vector<Sequence>& sequences,
     const double starLL = star_optim::starLikelihood(instances, sequences, partition);
     beagleFinalizeInstance(beagleInstance);
 
+    // Normalize rates
+    std::vector<double> rDist = rates.getCategories();
+    const double rExpectation = std::inner_product(rDist.begin(), rDist.end(), rates.getProbabilities().begin(), 0.0);
+    for(double& d : rDist)
+        d /= rExpectation;
+    bpp::SimpleDiscreteDistribution normRates(rDist, rates.getProbabilities());
+
     VectorSiteContainer sites = createSites(sequences[0]);
 
     Node *root = new Node(0),
@@ -68,7 +79,7 @@ void checkAgainstBpp(const std::vector<Sequence>& sequences,
     c2->setDistanceToFather(sequences[0].distance / 2);
     TreeTemplate<Node> tree(root);
 
-    DRHomogeneousTreeLikelihood calc(tree, sites, &model, &rates, true, false);
+    RHomogeneousTreeLikelihood calc(tree, sites, &model, &normRates, true, false);
     calc.initialize();
     calc.computeTreeLikelihood();
 
@@ -122,7 +133,8 @@ TEST(GTR, known_distance) {
 TEST(GTR, gamma_variation) {
     bpp::DNA dna;
     bpp::GTR model(&dna);
-    bpp::GammaDiscreteDistribution rates(4, 1.2, 1.0);
+    bpp::GammaDiscreteDistribution rates(4, 1.2, 1);
+
     model.setParameterValue("a", 0.5);
     model.setParameterValue("theta", 0.6);
     model.setParameterValue("theta1", 0.4);

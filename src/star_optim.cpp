@@ -131,9 +131,16 @@ void updateBeagleInstance(const int instance,
                           const bpp::DiscreteDistribution& rates)
 {
     const int nStates = model.getNumberOfStates();
+    std::vector<double> r = rates.getCategories();
+    std::vector<double> p = rates.getProbabilities();
+    const double expectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
+
+    for(int i = 0; i < r.size(); i++)
+        r[i] = r[i] / expectation;
+
     // Fill rates
-    beagleSetCategoryRates(instance, rates.getCategories().data());
-    beagleSetCategoryWeights(instance, 0, rates.getProbabilities().data());
+    beagleSetCategoryRates(instance, r.data());
+    beagleSetCategoryWeights(instance, 0, p.data());
 
     // And states
     std::vector<int> ref(nStates * nStates), qry(nStates * nStates);
