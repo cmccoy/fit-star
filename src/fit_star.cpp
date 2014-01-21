@@ -240,7 +240,7 @@ int main(const int argc, const char** argv)
     }
 
     if(vm.count("kappa-prior") && modelName != "HKY85") {
-        LOG_INFO(logger) << "kappa prior is not compatible with model " << modelName << '\n';
+        LOG_FATAL(logger) << "kappa prior is not compatible with model " << modelName << '\n';
         return 1;
     }
 
