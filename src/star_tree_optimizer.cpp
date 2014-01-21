@@ -135,6 +135,10 @@ void updateBeagleInstance(const int instance,
     const double normExpectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
     if(std::abs(normExpectation - 1.0) > 1e-2) {
         std::clog << "Expected rate: " << normExpectation << '\n';
+        auto pList = rates.getParameters();
+        for(int i = 0; i < pList.size(); i++) {
+            std::clog << pList[i].getName() << "\t=\t" << pList[i].getValue() << '\n';
+        }
         assert(false && "Expected rate is not 1.0");
     }
 
@@ -306,6 +310,9 @@ size_t StarTreeOptimizer::optimize(const bool verbose)
                 // Rate-related hack
                 if(params[i].parameterName == "value") {
                     lowerBounds[i] = 1e-6;
+                    upperBounds[i] = 20;
+                } else if (params[i].parameterName == "alpha") {
+                    lowerBounds[i] = 0.3;
                     upperBounds[i] = 20;
                 } else if(!bp.hasConstraint())
                     continue;
