@@ -19,10 +19,12 @@
 
 #include <nlopt.hpp>
 
+#include <cpplog.hpp>
+
 namespace star_optim
 {
 
-/// Minimum improvement in LL over a round
+cpplog::StdErrLogger log;
 
 void beagleCheck(const int value, const std::string& details = "")
 {
@@ -38,8 +40,10 @@ void beagleCheck(const int value, const std::string& details = "")
         case BEAGLE_ERROR_FLOATING_POINT: s = "BEAGLE_ERROR_FLOATING_POINT"; break;
         default: break;
     }
-    if(!s.empty())
+    if(!s.empty()) {
+        LOG_WARN(log) << s << " " << details << '\n';
         throw std::runtime_error(s + " " + details);
+    }
 }
 
 
@@ -134,10 +138,10 @@ void updateBeagleInstance(const int instance,
 
     const double normExpectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
     if(std::abs(normExpectation - 1.0) > 1e-2) {
-        std::clog << "Expected rate: " << normExpectation << '\n';
+        LOG_INFO(log) << "Expected rate: " << normExpectation << '\n';
         auto pList = rates.getParameters();
         for(int i = 0; i < pList.size(); i++) {
-            std::clog << pList[i].getName() << "\t=\t" << pList[i].getValue() << '\n';
+            LOG_WARN(log) << pList[i].getName() << "\t=\t" << pList[i].getValue() << '\n';
         }
         assert(false && "Expected rate is not 1.0");
     }
@@ -269,14 +273,11 @@ StarTreeOptimizer::~StarTreeOptimizer()
 }
 
 /// \brief Optimize the model & branch lengths distribution for a collection of sequences
-size_t StarTreeOptimizer::optimize(const bool verbose)
+size_t StarTreeOptimizer::optimize()
 {
     double lastLogLike = starLikelihood();
 
-    if(verbose) {
-        std::clog << "initial: " << lastLogLike << "\n";
-        std::clog.flush();
-    }
+    LOG_INFO(log) << "initial: " << lastLogLike << "\n";
 
     size_t iter = 0;
     for(iter = 0; iter < maxRounds_; iter++) {
@@ -337,20 +338,16 @@ size_t StarTreeOptimizer::optimize(const bool verbose)
 
             try {
                 const int nlOptResult = opt.optimize(x, logLike);
-                std::clog << "Optimization finished with " << nlOptResult << '\n';
+                LOG_INFO(log) << "Optimization finished with " << nlOptResult << '\n';
             } catch(std::exception& e) {
-                std::clog << "Optimization failed: " << e.what()<< "\n";
+                LOG_WARN(log) << "Optimization failed:  " << e.what() << '\n';
             }
-            //if(nlOptResult != nlopt::SUCCESS)
 
             for(size_t i = 0; i < nParam; i++) {
                 params[i].setValue(x[i]);
             }
 
-            if(verbose) {
-                std::clog << "iteration " << iter << "." << idx << ": " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
-                std::clog.flush();
-            }
+            LOG_INFO(log) << "iteration " << iter << "." << idx << ": " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
 
             anyImproved = anyImproved || std::abs(logLike - lastLogLike) > threshold();
             lastLogLike = logLike;
@@ -361,10 +358,7 @@ size_t StarTreeOptimizer::optimize(const bool verbose)
         estimateBranchLengths();
         logLike = starLikelihood();
 
-        if(verbose) {
-            std::clog << "iteration " << iter << " (branch lengths): " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
-            std::clog.flush();
-        }
+        LOG_INFO(log) << "iteration " << iter << " (branch lengths): " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
 
         anyImproved = anyImproved || std::abs(logLike - lastLogLike) > threshold();
         lastLogLike = logLike;

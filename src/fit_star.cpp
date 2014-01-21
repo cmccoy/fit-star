@@ -30,6 +30,8 @@
 #include <Bpp/Phyl/Model/JCnuc.h>
 #include <Bpp/Seq/Alphabet/DNA.h>
 
+#include <cpplog.hpp>
+
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -38,10 +40,12 @@ namespace po = boost::program_options;
 
 const bpp::DNA DNA;
 
+cpplog::StdErrLogger logger;
+
 void loadSequencesFromFile(const std::string& file_path, std::vector<Sequence>& dest)
 {
     std::fstream in(file_path, std::ios::in | std::ios::binary);
-    std::clog << "Loading from " << file_path << '\n';
+    LOG_INFO(logger) << "Loading from " << file_path << '\n';
     assert(in.good() && "Input stream is not good.");
     google::protobuf::io::IstreamInputStream raw_in(&in);
     google::protobuf::io::GzipInputStream zip_in(&raw_in);
@@ -236,7 +240,7 @@ int main(const int argc, const char** argv)
     }
 
     if(vm.count("kappa-prior") && modelName != "HKY85") {
-        std::clog << "kappa prior is not compatible with model " << modelName << '\n';
+        LOG_INFO(logger) << "kappa prior is not compatible with model " << modelName << '\n';
         return 1;
     }
 
@@ -252,7 +256,7 @@ int main(const int argc, const char** argv)
         assert(nPartitions == sequence.substitutions.size() && "Varying number of partitions");
     }
 
-    std::clog << sequences.size() << " sequences." << '\n';
+    LOG_INFO(logger) << sequences.size() << " sequences." << '\n';
 
     std::vector<std::unique_ptr<bpp::SubstitutionModel>> models;
     std::vector<std::unique_ptr<bpp::DiscreteDistribution>> rates;
@@ -265,10 +269,10 @@ int main(const int argc, const char** argv)
     if(vm.count("kappa-prior"))
         optimizer.hky85KappaPrior(hky85KappaPrior);
 
-    size_t rounds = optimizer.optimize(true);
+    size_t rounds = optimizer.optimize();
 
     const double finalLike = optimizer.starLikelihood();
-    std::clog << "final log-like: " << finalLike << '\n';
+    LOG_INFO(logger) << "final log-like: " << finalLike << '\n';
 
     std::ofstream out(outputPath);
     writeResults(out, models, rates, sequences, finalLike, !no_branch_lengths);

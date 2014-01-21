@@ -53,7 +53,7 @@ public:
                       std::vector<Sequence>& sequences);
     ~StarTreeOptimizer();
 
-    size_t optimize(const bool verbose = true);
+    size_t optimize();
     /// \brief calculate the star-tree likelihood
     double starLikelihood(const size_t partition);
 
