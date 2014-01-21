@@ -23,12 +23,6 @@ namespace star_optim
 {
 
 /// Minimum improvement in LL over a round
-const double IMPROVE_THRESH = 0.1;
-const size_t MAX_ROUNDS = 30;
-const size_t MAX_ITER = 300;
-const double MIN_SUBS_PARAM = 1e-5,
-             MAX_SUBS_PARAM = 20.0;
-const size_t BIT_TOL = 50;
 
 void beagleCheck(const int value, const std::string& details = "")
 {
@@ -133,13 +127,13 @@ void updateBeagleInstance(const int instance,
     const int nStates = model.getNumberOfStates();
     std::vector<double> r = rates.getCategories();
     std::vector<double> p = rates.getProbabilities();
-    const double expectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
+    //const double expectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
 
-    for(int i = 0; i < r.size(); i++)
-        r[i] = r[i] / expectation;
+    //for(int i = 0; i < r.size(); i++)
+        //r[i] = r[i] / expectation;
 
     const double normExpectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
-    assert(std::abs(normExpectation - 1.0) < 1e-5 && "Expected rate is not 1.0");
+    assert(std::abs(normExpectation - 1.0) < 1e-2 && "Expected rate is not 1.0");
 
     // Fill rates
     beagleSetCategoryRates(instance, r.data());
@@ -278,7 +272,7 @@ size_t StarTreeOptimizer::optimize(const bool verbose)
     }
 
     size_t iter = 0;
-    for(iter = 0; iter < MAX_ROUNDS; iter++) {
+    for(iter = 0; iter < maxRounds_; iter++) {
         bool anyImproved = false;
         double logLike;
 
@@ -289,16 +283,16 @@ size_t StarTreeOptimizer::optimize(const bool verbose)
             for(const std::string& s : model->getParameters().getParameterNames()) {
                 params.push_back(Parameter { static_cast<bpp::Parametrizable*>(model), model->getParameterNameWithoutNamespace(s) });
             }
-            for(const std::string& s : r->getParameters().getParameterNames()) {
+            for(const std::string& s : r->getIndependentParameters().getParameterNames()) {
                 // fix the rate in position 1 at 1.0
-                if((idx != 0 || s != "Constant.value") && s != "Gamma.beta")
+                if((idx != 0 || s != "Constant.value"))
                     params.push_back(Parameter { static_cast<bpp::Parametrizable*>(r), r->getParameterNameWithoutNamespace(s) });
+                assert(s != "Gamma.beta" && "Gamma.beta should be aliased");
             }
             const size_t nParam = params.size();
 
             // First, substitution model
             nlopt::opt opt(nlopt::LN_BOBYQA, nParam);
-            //nlopt::opt opt(nlopt::LN_COBYLA, nParam);
             NlOptParams optParams { &params, this };
             opt.set_max_objective(nlLogLike, &optParams);
 
@@ -322,8 +316,8 @@ size_t StarTreeOptimizer::optimize(const bool verbose)
             }
             opt.set_lower_bounds(lowerBounds);
             opt.set_upper_bounds(upperBounds);
-            opt.set_ftol_abs(IMPROVE_THRESH);
-            opt.set_maxeval(MAX_ITER);
+            opt.set_ftol_abs(threshold());
+            opt.set_maxeval(maxIterations());
 
             std::vector<double> x(nParam);
             for(size_t i = 0; i < nParam; i++) {
@@ -347,7 +341,7 @@ size_t StarTreeOptimizer::optimize(const bool verbose)
                 std::clog.flush();
             }
 
-            anyImproved = anyImproved || std::abs(logLike - lastLogLike) > IMPROVE_THRESH;
+            anyImproved = anyImproved || std::abs(logLike - lastLogLike) > threshold();
             lastLogLike = logLike;
         }
 
@@ -361,7 +355,7 @@ size_t StarTreeOptimizer::optimize(const bool verbose)
             std::clog.flush();
         }
 
-        anyImproved = anyImproved || std::abs(logLike - lastLogLike) > IMPROVE_THRESH;
+        anyImproved = anyImproved || std::abs(logLike - lastLogLike) > threshold();
         lastLogLike = logLike;
 
         if(!anyImproved)

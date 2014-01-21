@@ -9,12 +9,9 @@
 
 #include "Eigen/Core"
 
-#include <Bpp/Numeric/Prob/ConstantDistribution.h>
-#include <Bpp/Numeric/Prob/GammaDiscreteDistribution.h>
-#include <Bpp/Numeric/Prob/SimpleDiscreteDistribution.h>
 #include <Bpp/Phyl/Distance/DistanceEstimation.h>
-#include <Bpp/Phyl/Likelihood/RHomogeneousTreeLikelihood.h>
 #include <Bpp/Phyl/Likelihood/DiscreteRatesAcrossSitesTreeLikelihood.h>
+#include <Bpp/Phyl/Likelihood/RHomogeneousTreeLikelihood.h>
 #include <Bpp/Phyl/Model.all>
 #include <Bpp/Phyl/TreeTemplate.h>
 #include <Bpp/Seq/Alphabet/DNA.h>
@@ -54,17 +51,10 @@ void checkAgainstBpp(std::vector<Sequence>& sequences,
     using namespace bpp;
     ASSERT_EQ(1, sequences.size());
 
-
-    // Normalize rates
-    std::vector<double> rDist = rates->getCategories();
-    const double rExpectation = std::inner_product(rDist.begin(), rDist.end(), rates->getProbabilities().begin(), 0.0);
-    for(double& d : rDist)
-        d /= rExpectation;
-
     std::vector<std::unique_ptr<bpp::SubstitutionModel>> models;
     models.emplace_back(model->clone());
     std::vector<std::unique_ptr<bpp::DiscreteDistribution>> rateDists;
-    rateDists.emplace_back(new bpp::SimpleDiscreteDistribution(rDist, rates->getProbabilities()));
+    rateDists.emplace_back(rates->clone());
 
     star_optim::StarTreeOptimizer optimizer(models, rateDists, sequences);
     const size_t partition = 0;
@@ -93,7 +83,8 @@ void checkAgainstBpp(std::vector<Sequence>& sequences,
 TEST(GTR, simple_jc) {
     bpp::DNA dna;
     std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
-    std::unique_ptr<bpp::DiscreteDistribution> rates(new bpp::ConstantDistribution(1.0));
+    bpp::RateDistributionFactory fac(4);
+    std::unique_ptr<bpp::DiscreteDistribution> rates(fac.createDiscreteDistribution("Constant"));
 
     std::vector<Sequence> v { Sequence() };
     Sequence& s = v.front();
@@ -114,7 +105,8 @@ TEST(GTR, simple_jc) {
 TEST(GTR, known_distance) {
     bpp::DNA dna;
     std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
-    std::unique_ptr<bpp::DiscreteDistribution> rates(new bpp::ConstantDistribution(1.0));
+    bpp::RateDistributionFactory fac(4);
+    std::unique_ptr<bpp::DiscreteDistribution> rates(fac.createDiscreteDistribution("Constant"));
 
     std::vector<Sequence> v { Sequence() };
 
@@ -135,7 +127,10 @@ TEST(GTR, known_distance) {
 TEST(GTR, gamma_variation) {
     bpp::DNA dna;
     std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
-    std::unique_ptr<bpp::DiscreteDistribution> rates(new bpp::GammaDiscreteDistribution(4, 1.2, 1));
+    bpp::RateDistributionFactory fac(4);
+    std::unique_ptr<bpp::DiscreteDistribution> rates(fac.createDiscreteDistribution("Gamma"));
+    rates->aliasParameters("alpha", "beta");
+    rates->setParameterValue("alpha", 1.2);
 
     model->setParameterValue("a", 0.5);
     model->setParameterValue("theta", 0.6);

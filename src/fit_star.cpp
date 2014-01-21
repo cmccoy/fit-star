@@ -23,8 +23,7 @@
 #include "libhmsbeagle/beagle.h"
 
 // Bio++
-#include <Bpp/Numeric/Prob/ConstantDistribution.h>
-#include <Bpp/Numeric/Prob/GammaDiscreteDistribution.h>
+#include <Bpp/Phyl/Model/RateDistributionFactory.h>
 #include <Bpp/Phyl/Model/GTR.h>
 #include <Bpp/Phyl/Model/HKY85.h>
 #include <Bpp/Phyl/Model/TN93.h>
@@ -103,10 +102,16 @@ std::unique_ptr<bpp::DiscreteDistribution> rateDistributionForName(const std::st
     std::string lower = name;
     std::transform(name.begin(), name.end(), lower.begin(), ::tolower);
 
-    if(lower == "gamma")
-        return p(new bpp::GammaDiscreteDistribution(4));
-    else if(lower == "constant")
-        return p(new bpp::ConstantDistribution(1.0));
+    if(lower == "gamma") {
+        bpp::RateDistributionFactory factory(4);
+        p result(factory.createDiscreteDistribution("Gamma"));
+        // This is how Bio++ handles gamma discrete
+        result->aliasParameters("alpha", "beta");
+        return result;
+    } else if(lower == "constant") {
+        bpp::RateDistributionFactory factory(1);
+        return p(factory.createDiscreteDistribution("Constant"));
+    }
     throw std::runtime_error("Unknown model: " + name);
 }
 
@@ -260,7 +265,9 @@ int main(const int argc, const char** argv)
     if(vm.count("kappa-prior"))
         optimizer.hky85KappaPrior(hky85KappaPrior);
 
-    const double finalLike = optimizer.starLikelihood(hky85KappaPrior);
+    size_t rounds = optimizer.optimize(true);
+
+    const double finalLike = optimizer.starLikelihood();
     std::clog << "final log-like: " << finalLike << '\n';
 
     std::ofstream out(outputPath);
