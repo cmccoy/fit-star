@@ -2,7 +2,7 @@
 #include <vector>
 #include <iostream>
 #include "gtest/gtest.h"
-#include "star_optim.hpp"
+#include "star_tree_optimizer.hpp"
 #include "sequence.hpp"
 
 #include "libhmsbeagle/beagle.h"

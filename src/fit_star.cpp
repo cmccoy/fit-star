@@ -16,7 +16,7 @@
 #include <json/value.h>
 
 #include "fit_star_config.h"
-#include "star_optim.hpp"
+#include "star_tree_optimizer.hpp"
 #include "sequence.hpp"
 
 // Beagle

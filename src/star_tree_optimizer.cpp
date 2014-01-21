@@ -1,4 +1,4 @@
-#include "star_optim.hpp"
+#include "star_tree_optimizer.hpp"
 #include "sequence.hpp"
 
 #ifdef _OPENMP
@@ -133,7 +133,10 @@ void updateBeagleInstance(const int instance,
         //r[i] = r[i] / expectation;
 
     const double normExpectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
-    assert(std::abs(normExpectation - 1.0) < 1e-2 && "Expected rate is not 1.0");
+    if(std::abs(normExpectation - 1.0) > 1e-2) {
+        std::clog << "Expected rate: " << normExpectation << '\n';
+        assert(false && "Expected rate is not 1.0");
+    }
 
     // Fill rates
     beagleSetCategoryRates(instance, r.data());
