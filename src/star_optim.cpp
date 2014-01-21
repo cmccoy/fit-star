@@ -216,12 +216,8 @@ struct Parameter
 
 
 struct NlOptParams {
-    std::vector<Sequence>* sequences;
     std::vector<Parameter>* paramList;
-    std::vector<std::unique_ptr<bpp::SubstitutionModel>>* model;
-    std::vector<std::unique_ptr<bpp::DiscreteDistribution>>* rates;
     StarTreeOptimizer* optimizer;
-    const double hky85KappaPrior;
 };
 
 double nlLogLike(const std::vector<double>& x, std::vector<double>& grad, void* data)
@@ -234,28 +230,31 @@ double nlLogLike(const std::vector<double>& x, std::vector<double>& grad, void* 
         params->paramList->operator[](i).setValue(x[i]);
     }
 
-    return params->optimizer->starLikelihood(*params->model, *params->rates, *params->sequences, params->hky85KappaPrior);
+    return params->optimizer->starLikelihood();
 }
 
 
 // StarTreeOptimizer
 StarTreeOptimizer::StarTreeOptimizer(std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
-                                     std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates) :
+                                     std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
+                                     std::vector<Sequence>& sequences) :
         models_(models),
         rates_(rates),
+        sequences_(sequences),
         threshold_(0.1),
         max_rounds_(30),
         max_iter_(300),
         bit_tol_(50),
         min_subs_param_(1e-5),
-        max_subs_param_(20.0)
+        max_subs_param_(20.0),
+        hky85_prior_(-1.0)
 {
     beagleInstances_.resize(1);
 #ifdef _OPENMP
     beagleInstances_.resize(omp_get_max_threads());
 #endif
     for(std::vector<int>& v : beagleInstances_) {
-        for(size_t i = 0; i < models.size(); i++) {
+        for(size_t i = 0; i < models_.size(); i++) {
             v.push_back(star_optim::createBeagleInstance(*models[i], *rates[i]));
         }
     }
@@ -269,13 +268,9 @@ StarTreeOptimizer::~StarTreeOptimizer()
 }
 
 /// \brief Optimize the model & branch lengths distribution for a collection of sequences
-size_t StarTreeOptimizer::optimize(std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
-                                   std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
-                                   std::vector<Sequence>& sequences,
-                                   const double hky85KappaPrior,
-                                   const bool verbose)
+size_t StarTreeOptimizer::optimize(const bool verbose)
 {
-    double lastLogLike = starLikelihood(models, rates, sequences, hky85KappaPrior);
+    double lastLogLike = starLikelihood();
 
     if(verbose) {
         std::clog << "initial: " << lastLogLike << "\n";
@@ -287,10 +282,10 @@ size_t StarTreeOptimizer::optimize(std::vector<std::unique_ptr<bpp::Substitution
         bool anyImproved = false;
         double logLike;
 
-        for(size_t idx = 0; idx < models.size(); idx++) {
+        for(size_t idx = 0; idx < models_.size(); idx++) {
             std::vector<Parameter> params;
-            bpp::SubstitutionModel* model = models[idx].get();
-            bpp::DiscreteDistribution* r = rates[idx].get();
+            bpp::SubstitutionModel* model = models_[idx].get();
+            bpp::DiscreteDistribution* r = rates_[idx].get();
             for(const std::string& s : model->getParameters().getParameterNames()) {
                 params.push_back(Parameter { static_cast<bpp::Parametrizable*>(model), model->getParameterNameWithoutNamespace(s) });
             }
@@ -304,7 +299,7 @@ size_t StarTreeOptimizer::optimize(std::vector<std::unique_ptr<bpp::Substitution
             // First, substitution model
             nlopt::opt opt(nlopt::LN_BOBYQA, nParam);
             //nlopt::opt opt(nlopt::LN_COBYLA, nParam);
-            NlOptParams optParams { &sequences, &params, &models, &rates, this, hky85KappaPrior };
+            NlOptParams optParams { &params, this };
             opt.set_max_objective(nlLogLike, &optParams);
 
             std::vector<double> lowerBounds(nParam, -std::numeric_limits<double>::max());
@@ -358,8 +353,8 @@ size_t StarTreeOptimizer::optimize(std::vector<std::unique_ptr<bpp::Substitution
 
 
         // then, branch lengths
-        estimateBranchLengths(sequences);
-        logLike = starLikelihood(models, rates, sequences, hky85KappaPrior);
+        estimateBranchLengths();
+        logLike = starLikelihood();
 
         if(verbose) {
             std::clog << "iteration " << iter << " (branch lengths): " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
@@ -380,26 +375,23 @@ size_t StarTreeOptimizer::optimize(std::vector<std::unique_ptr<bpp::Substitution
 ///
 /// \param instances - a vector, with one entry per thread, with a vector containing a BEAGLE instance ID for each
 /// partition.
-double StarTreeOptimizer::starLikelihood(const std::vector<std::unique_ptr<bpp::SubstitutionModel>>& model,
-                                          const std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
-                                          const std::vector<Sequence>& sequences,
-                                          const double hky85KappaPrior)
+double StarTreeOptimizer::starLikelihood()
 {
     double result = 0.0;
 
     for(const std::vector<int>& v : beagleInstances_) {
         for(size_t i = 0; i < v.size(); i++) {
-            updateBeagleInstance(v[i], *model[i], *rates[i]);
+            updateBeagleInstance(v[i], *models_[i], *rates_[i]);
         }
     }
 
     double prior = 0.0;
-    for(size_t i = 0; i < model.size(); i++) {
-        result += starLikelihood(sequences, i);
-        if(hky85KappaPrior > 0.0) {
-            assert(model[i]->hasParameter("kappa") && "Model does not have kappa?");
-            boost::math::lognormal_distribution<double> distn(1, hky85KappaPrior);
-            prior += std::log(boost::math::pdf(distn, model[i]->getParameterValue("kappa")));
+    for(size_t i = 0; i < models_.size(); i++) {
+        result += starLikelihood(i);
+        if(hky85_prior_ > 0.0) {
+            assert(models_[i]->hasParameter("kappa") && "Model does not have kappa?");
+            boost::math::lognormal_distribution<double> distn(1, hky85_prior_);
+            prior += std::log(boost::math::pdf(distn, models_[i]->getParameterValue("kappa")));
         }
     }
 
@@ -407,36 +399,35 @@ double StarTreeOptimizer::starLikelihood(const std::vector<std::unique_ptr<bpp::
 }
 
 /// \brief Calculate the likelihood of a collection of sequences under the star tree model
-double StarTreeOptimizer::starLikelihood(const std::vector<Sequence>& sequences,
-                                         const size_t partition)
+double StarTreeOptimizer::starLikelihood(const size_t partition)
 {
     double result = 0.0;
 #ifdef _OPENMP
     #pragma omp parallel for reduction(+:result)
 #endif
-    for(size_t i = 0; i < sequences.size(); i++) {
+    for(size_t i = 0; i < sequences_.size(); i++) {
         int instance_idx = 0;
 #ifdef _OPENMP
         instance_idx = omp_get_thread_num();
 #endif
         const int instance = beagleInstances_[instance_idx][partition];
-        result += pairLogLikelihood(instance, sequences[i].substitutions[partition], sequences[i].distance);
+        result += pairLogLikelihood(instance, sequences_[i].substitutions[partition], sequences_[i].distance);
     }
     return result;
 }
 
 /// \brief estimate branch lengths
-void StarTreeOptimizer::estimateBranchLengths(std::vector<Sequence>& sequences)
+void StarTreeOptimizer::estimateBranchLengths()
 {
 #ifdef _OPENMP
     #pragma omp parallel for
 #endif
-    for(size_t i = 0; i < sequences.size(); i++) {
+    for(size_t i = 0; i < sequences_.size(); i++) {
         int idx = 0;
 #ifdef _OPENMP
         idx = omp_get_thread_num();
 #endif
-        Sequence& s = sequences[i];
+        Sequence& s = sequences_[i];
         std::vector<int> inst = beagleInstances_[idx];
 
         auto f = [&inst, &s](const double d) {

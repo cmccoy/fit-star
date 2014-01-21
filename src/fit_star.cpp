@@ -256,10 +256,11 @@ int main(const int argc, const char** argv)
         rates.emplace_back(rateDistributionForName(rate_dist_name));
     }
 
-    star_optim::StarTreeOptimizer optimizer(models, rates);
-    optimizer.optimize(models, rates, sequences, hky85KappaPrior);
+    star_optim::StarTreeOptimizer optimizer(models, rates, sequences);
+    if(vm.count("kappa-prior"))
+        optimizer.hky85_prior(hky85KappaPrior);
 
-    const double finalLike = optimizer.starLikelihood(models, rates, sequences, hky85KappaPrior);
+    const double finalLike = optimizer.starLikelihood(hky85KappaPrior);
     std::clog << "final log-like: " << finalLike << '\n';
 
     std::ofstream out(output_path);

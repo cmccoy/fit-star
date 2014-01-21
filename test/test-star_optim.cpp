@@ -46,7 +46,7 @@ bpp::VectorSiteContainer createSites(const Sequence& sequence)
     return result;
 }
 
-void checkAgainstBpp(const std::vector<Sequence>& sequences,
+void checkAgainstBpp(std::vector<Sequence>& sequences,
                      std::unique_ptr<bpp::SubstitutionModel>& model,
                      std::unique_ptr<bpp::DiscreteDistribution>& rates,
                      double& logL)
@@ -66,9 +66,9 @@ void checkAgainstBpp(const std::vector<Sequence>& sequences,
     std::vector<std::unique_ptr<bpp::DiscreteDistribution>> rateDists;
     rateDists.emplace_back(new bpp::SimpleDiscreteDistribution(rDist, rates->getProbabilities()));
 
-    star_optim::StarTreeOptimizer optimizer(models, rateDists);
+    star_optim::StarTreeOptimizer optimizer(models, rateDists, sequences);
     const size_t partition = 0;
-    const double starLL = optimizer.starLikelihood(sequences, partition);
+    const double starLL = optimizer.starLikelihood(partition);
 
     VectorSiteContainer sites = createSites(sequences[0]);
 

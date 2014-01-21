@@ -43,33 +43,31 @@ public:
     size_t& bit_tol() { return bit_tol_; };
     const size_t& bit_tol() const { return bit_tol_; };
     void bit_tol(const size_t value) { bit_tol_ = value; }
+    /// HKY prior
+    double& hky85_prior() { return hky85_prior_; };
+    const double& hky85_prior() const { return hky85_prior_; };
+    void hky85_prior(const double value) { hky85_prior_ = value; }
 
     StarTreeOptimizer(std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
-                      std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates);
+                      std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
+                      std::vector<Sequence>& sequences);
     ~StarTreeOptimizer();
 
-    size_t optimize(std::vector<std::unique_ptr<bpp::SubstitutionModel>>&,
-                    std::vector<std::unique_ptr<bpp::DiscreteDistribution>>&,
-                    std::vector<Sequence>&,
-                    const double hky85KappaPrior=-1.0,
-                    const bool verbose = true);
+    size_t optimize(const bool verbose = true);
     /// \brief calculate the star-tree likelihood
-    double starLikelihood(const std::vector<Sequence>&,
-                          const size_t partition);
+    double starLikelihood(const size_t partition);
 
-    double starLikelihood(const std::vector<std::unique_ptr<bpp::SubstitutionModel>>&,
-                          const std::vector<std::unique_ptr<bpp::DiscreteDistribution>>&,
-                          const std::vector<Sequence>&,
-                          const double hky85KappaPrior=-1.0);
+    double starLikelihood();
     /// \brief estimate branch lengths
-    void estimateBranchLengths(std::vector<Sequence>&);
+    void estimateBranchLengths();
 private:
     std::vector<std::vector<int>> beagleInstances_;
     std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models_;
     std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates_;
+    std::vector<Sequence>& sequences_;
     double threshold_;
     size_t max_rounds_, max_iter_, bit_tol_;
-    double min_subs_param_, max_subs_param_;
+    double min_subs_param_, max_subs_param_, hky85_prior_;
 };
 
 }
