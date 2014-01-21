@@ -377,8 +377,7 @@ size_t optimize(const std::vector<std::vector<int>>& beagleInstances,
                     // TODO: changes in bpp 2.1
                     bpp::Interval* constraint = dynamic_cast<bpp::Interval*>(bp.getConstraint());
                     assert(constraint != nullptr);
-                    lowerBounds[i] = constraint->getLowerBound();
-                    if(lowerBounds[i] == 0.0) lowerBounds[i] += 1e-6;
+                    lowerBounds[i] = constraint->getLowerBound() + 1e-7;
                     upperBounds[i] = std::min(constraint->getUpperBound(), 20.0);
                 }
             }
