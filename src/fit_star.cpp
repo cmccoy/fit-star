@@ -199,8 +199,8 @@ int main(const int argc, const char** argv)
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-    std::string output_path, model_name = "GTR", rate_dist_name = "Constant";
-    std::vector<std::string> input_paths;
+    std::string outputPath, modelName = "GTR", rateDistName = "Constant";
+    std::vector<std::string> inputPaths;
     bool no_branch_lengths = false;
     double hky85KappaPrior = -1;
 
@@ -209,11 +209,11 @@ int main(const int argc, const char** argv)
     desc.add_options()
     ("help,h", "Produce help message")
     ("version,v", "Show version")
-    ("input-file,i", po::value(&input_paths)->composing()->required(),
+    ("input-file,i", po::value(&inputPaths)->composing()->required(),
      "input file(s) - output of build-mutation-matrices [required]")
-    ("output-file,o", po::value(&output_path)->required(), "output file [required]")
-    ("model,m", po::value(&model_name), "model [default: GTR]")
-    ("rate-dist,r", po::value(&rate_dist_name), "rate distribution [default: constant]")
+    ("output-file,o", po::value(&outputPath)->required(), "output file [required]")
+    ("model,m", po::value(&modelName), "model [default: GTR]")
+    ("rate-dist,r", po::value(&rateDistName), "rate distribution [default: constant]")
     ("kappa-prior,k", po::value(&hky85KappaPrior), "Prior on HKY85 kappa [default: None]")
     ("no-branch-lengths", po::bool_switch(&no_branch_lengths), "*do not* include fit branch lengths in output");
 
@@ -230,15 +230,15 @@ int main(const int argc, const char** argv)
         return 0;
     }
 
-    if(vm.count("kappa-prior") && model_name != "HKY85") {
-        std::clog << "kappa prior is not compatible with model " << model_name << '\n';
+    if(vm.count("kappa-prior") && modelName != "HKY85") {
+        std::clog << "kappa prior is not compatible with model " << modelName << '\n';
         return 1;
     }
 
     po::notify(vm);
 
     std::vector<Sequence> sequences;
-    for(const std::string& path : input_paths) {
+    for(const std::string& path : inputPaths) {
         loadSequencesFromFile(path, sequences);
     }
 
@@ -252,18 +252,18 @@ int main(const int argc, const char** argv)
     std::vector<std::unique_ptr<bpp::SubstitutionModel>> models;
     std::vector<std::unique_ptr<bpp::DiscreteDistribution>> rates;
     for(size_t i = 0; i < nPartitions; i++) {
-        models.emplace_back(substitutionModelForName(model_name));
-        rates.emplace_back(rateDistributionForName(rate_dist_name));
+        models.emplace_back(substitutionModelForName(modelName));
+        rates.emplace_back(rateDistributionForName(rateDistName));
     }
 
     star_optim::StarTreeOptimizer optimizer(models, rates, sequences);
     if(vm.count("kappa-prior"))
-        optimizer.hky85_prior(hky85KappaPrior);
+        optimizer.hky85KappaPrior(hky85KappaPrior);
 
     const double finalLike = optimizer.starLikelihood(hky85KappaPrior);
     std::clog << "final log-like: " << finalLike << '\n';
 
-    std::ofstream out(output_path);
+    std::ofstream out(outputPath);
     writeResults(out, models, rates, sequences, finalLike, !no_branch_lengths);
 
     google::protobuf::ShutdownProtobufLibrary();

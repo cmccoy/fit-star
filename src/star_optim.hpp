@@ -24,29 +24,29 @@ public:
     const double& threshold() const { return threshold_; };
     void threshold(const double value) { threshold_ = value; }
     /// Maximum rounds of fitting
-    size_t& max_rounds() { return max_rounds_; };
-    const size_t& max_rounds() const { return max_rounds_; };
-    void max_rounds(const size_t value) { max_rounds_ = value; }
+    size_t& maxRounds() { return maxRounds_; };
+    const size_t& maxRounds() const { return maxRounds_; };
+    void maxRounds(const size_t value) { maxRounds_ = value; }
     /// Maximum number of iterations
-    size_t& max_iter() { return max_iter_; };
-    const size_t& max_iter() const { return max_iter_; };
-    void max_iter(const size_t value) { max_iter_ = value; }
+    size_t& maxIterations() { return maxIterations_; };
+    const size_t& maxIterations() const { return maxIterations_; };
+    void maxIterations(const size_t value) { maxIterations_ = value; }
     /// Minimum value for substitution parameters
-    double& min_subs_param() { return min_subs_param_; };
-    const double& min_subs_param() const { return min_subs_param_; };
-    void min_subs_param(const double value) { min_subs_param_ = value; }
+    double& minSubsParam() { return minSubsParam_; };
+    const double& minSubsParam() const { return minSubsParam_; };
+    void minSubsParam(const double value) { minSubsParam_ = value; }
     /// Maximum value for substitution parameters
-    double& max_subs_param() { return max_subs_param_; };
-    const double& max_subs_param() const { return max_subs_param_; };
-    void max_subs_param(const double value) { max_subs_param_ = value; }
+    double& maxSubsParam() { return maxSubsParam_; };
+    const double& maxSubsParam() const { return maxSubsParam_; };
+    void maxSubsParam(const double value) { maxSubsParam_ = value; }
     /// Bit tolerance for branch length optimization (via Brent)
-    size_t& bit_tol() { return bit_tol_; };
-    const size_t& bit_tol() const { return bit_tol_; };
-    void bit_tol(const size_t value) { bit_tol_ = value; }
+    size_t& bitTolerance() { return bitTolerance_; };
+    const size_t& bitTolerance() const { return bitTolerance_; };
+    void bitTolerance(const size_t value) { bitTolerance_ = value; }
     /// HKY prior
-    double& hky85_prior() { return hky85_prior_; };
-    const double& hky85_prior() const { return hky85_prior_; };
-    void hky85_prior(const double value) { hky85_prior_ = value; }
+    double& hky85KappaPrior() { return hky85KappaPrior_; };
+    const double& hky85KappaPrior() const { return hky85KappaPrior_; };
+    void hky85KappaPrior(const double value) { hky85KappaPrior_ = value; }
 
     StarTreeOptimizer(std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
                       std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
@@ -66,8 +66,8 @@ private:
     std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates_;
     std::vector<Sequence>& sequences_;
     double threshold_;
-    size_t max_rounds_, max_iter_, bit_tol_;
-    double min_subs_param_, max_subs_param_, hky85_prior_;
+    size_t maxRounds_, maxIterations_, bitTolerance_;
+    double minSubsParam_, maxSubsParam_, hky85KappaPrior_;
 };
 
 }

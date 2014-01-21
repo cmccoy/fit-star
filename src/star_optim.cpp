@@ -242,12 +242,12 @@ StarTreeOptimizer::StarTreeOptimizer(std::vector<std::unique_ptr<bpp::Substituti
         rates_(rates),
         sequences_(sequences),
         threshold_(0.1),
-        max_rounds_(30),
-        max_iter_(300),
-        bit_tol_(50),
-        min_subs_param_(1e-5),
-        max_subs_param_(20.0),
-        hky85_prior_(-1.0)
+        maxRounds_(30),
+        maxIterations_(300),
+        bitTolerance_(50),
+        minSubsParam_(1e-5),
+        maxSubsParam_(20.0),
+        hky85KappaPrior_(-1.0)
 {
     beagleInstances_.resize(1);
 #ifdef _OPENMP
@@ -388,9 +388,9 @@ double StarTreeOptimizer::starLikelihood()
     double prior = 0.0;
     for(size_t i = 0; i < models_.size(); i++) {
         result += starLikelihood(i);
-        if(hky85_prior_ > 0.0) {
+        if(hky85KappaPrior_ > 0.0) {
             assert(models_[i]->hasParameter("kappa") && "Model does not have kappa?");
-            boost::math::lognormal_distribution<double> distn(1, hky85_prior_);
+            boost::math::lognormal_distribution<double> distn(1, hky85KappaPrior_);
             prior += std::log(boost::math::pdf(distn, models_[i]->getParameterValue("kappa")));
         }
     }
@@ -439,9 +439,9 @@ void StarTreeOptimizer::estimateBranchLengths()
             return -result;
         };
 
-        boost::uintmax_t max_iter = 100;
+        boost::uintmax_t maxIterations = 100;
         std::pair<double, double> res =
-            boost::math::tools::brent_find_minima(f, 1e-6, 0.8, 50, max_iter);
+            boost::math::tools::brent_find_minima(f, 1e-6, 0.8, 50, maxIterations);
         assert(!std::isnan(res.first) && "NaN distance?");
         s.distance = res.first;
     }
