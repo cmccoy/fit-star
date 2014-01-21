@@ -5,6 +5,12 @@ find_package(OpenMP)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
+# Beagle
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(HMS_BEAGLE hmsbeagle-2 REQUIRED)
+include_directories(${HMS_BEAGLE_INCLUDE_DIRS})
+link_directories(${HMS_BEAGLE_LIBRARY_DIRS})
+
 add_executable(${PROJECT_TEST_NAME} EXCLUDE_FROM_ALL test-main.cpp test-star_optim.cpp)
 target_link_libraries(${PROJECT_TEST_NAME} gtest gtest_main libstaropt)
 target_link_libraries(${PROJECT_TEST_NAME} bpp-phyl bpp-seq bpp-core)

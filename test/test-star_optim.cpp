@@ -3,6 +3,8 @@
 #include "star_optim.hpp"
 #include "sequence.hpp"
 
+#include "libhmsbeagle/beagle.h"
+
 #include "Eigen/Core"
 
 #include <Bpp/Numeric/Prob/ConstantDistribution.h>
@@ -25,7 +27,7 @@ bpp::VectorSiteContainer createSites(const Sequence& sequence)
 
     for(size_t i = 0; i < bases.size(); i++) {
         for(size_t j = 0; j < bases.size(); j++) {
-            int count = static_cast<int>(sequence.substitutions(i, j));
+            int count = static_cast<int>(sequence.substitutions[0](i, j));
             for(int k = 0; k < count; k++) {
                 seqs[0] += bases[i];
                 seqs[1] += bases[j];
@@ -41,12 +43,19 @@ bpp::VectorSiteContainer createSites(const Sequence& sequence)
 }
 
 void checkAgainstBpp(const std::vector<Sequence>& sequences,
-                       bpp::SubstitutionModel& model,
-                       bpp::DiscreteDistribution& rates)
+                     bpp::SubstitutionModel& model,
+                     bpp::DiscreteDistribution& rates,
+                     double& logL)
 {
     using namespace bpp;
     ASSERT_EQ(1, sequences.size());
-    const double starLL = star_optim::starLikelihood(model, rates, sequences);
+
+    const int beagleInstance = star_optim::createBeagleInstance(model, rates);
+    ASSERT_TRUE(beagleInstance >= 0) << "Beagle error";
+    const std::vector<std::vector<int>> instances { std::vector<int>(1, beagleInstance) };
+    const size_t partition = 0;
+    const double starLL = star_optim::starLikelihood(instances, sequences, partition);
+    beagleFinalizeInstance(beagleInstance);
 
     VectorSiteContainer sites = createSites(sequences[0]);
 
@@ -65,6 +74,7 @@ void checkAgainstBpp(const std::vector<Sequence>& sequences,
 
     const double bppLL = calc.getLogLikelihood();
     EXPECT_NEAR(bppLL, starLL, 1e-3) << "Likelihood calculations do not match.";
+    logL = starLL;
 }
 
 TEST(GTR, simple_jc) {
@@ -82,9 +92,8 @@ TEST(GTR, simple_jc) {
 
     s.distance = 0.02;
 
-    checkAgainstBpp(v, model, rates);
-
-    const double ll = star_optim::starLikelihood(model, rates, v);
+    double ll = 0.0;
+    checkAgainstBpp(v, model, rates, ll);
     const double expll = -5.62490959465585; // from bppml
     EXPECT_NEAR(expll, ll, 1e-5);
 }
@@ -105,7 +114,8 @@ TEST(GTR, known_distance) {
         1, 3, 2, 94;
     s.distance = 0.02;
 
-    checkAgainstBpp(v, model, rates);
+    double ll = 0.0;
+    checkAgainstBpp(v, model, rates, ll);
 }
 
 
@@ -129,5 +139,6 @@ TEST(GTR, gamma_variation) {
         1, 3, 2, 94;
     s.distance = 0.02;
 
-    checkAgainstBpp(v, model, rates);
+    double ll = 0.0;
+    checkAgainstBpp(v, model, rates, ll);
 }

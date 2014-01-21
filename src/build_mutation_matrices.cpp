@@ -126,7 +126,7 @@ int main(int argc, char* argv[])
     ("by-codon", po::bool_switch(&by_codon), "Partition by codon")
     ("max-records,n", po::value<size_t>(&maxRecords), "Maximum number of records to parse")
     ("input-fasta,f", po::value<std::string>(&fastaPath)->required(), "Path to (indexed) FASTA file")
-    ("input-bam,i", po::value<std::vector<std::string>>(&bamPaths)->required(), "Path to BAM(s)")
+    ("input-bam,i", po::value(&bamPaths)->composing()->required(), "Path to BAM(s)")
     ("output-file,o", po::value<std::string>(&outputPath)->required(), "Path to output file");
 
     po::variables_map vm;

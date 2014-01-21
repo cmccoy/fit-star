@@ -201,7 +201,7 @@ int main(const int argc, const char** argv)
     desc.add_options()
     ("help,h", "Produce help message")
     ("version,v", "Show version")
-    ("input-file,i", po::value(&input_paths)->required(),
+    ("input-file,i", po::value(&input_paths)->composing()->required(),
      "input file(s) - output of build-mutation-matrices [required]")
     ("output-file,o", po::value(&output_path)->required(), "output file [required]")
     ("model,m", po::value(&model_name), "model [default: GTR]")
