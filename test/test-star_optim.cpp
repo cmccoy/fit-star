@@ -47,26 +47,28 @@ bpp::VectorSiteContainer createSites(const Sequence& sequence)
 }
 
 void checkAgainstBpp(const std::vector<Sequence>& sequences,
-                     bpp::SubstitutionModel& model,
-                     bpp::DiscreteDistribution& rates,
+                     std::unique_ptr<bpp::SubstitutionModel>& model,
+                     std::unique_ptr<bpp::DiscreteDistribution>& rates,
                      double& logL)
 {
     using namespace bpp;
     ASSERT_EQ(1, sequences.size());
 
-    const int beagleInstance = star_optim::createBeagleInstance(model, rates);
-    ASSERT_TRUE(beagleInstance >= 0) << "Beagle error";
-    const std::vector<std::vector<int>> instances { std::vector<int>(1, beagleInstance) };
-    const size_t partition = 0;
-    const double starLL = star_optim::starLikelihood(instances, sequences, partition);
-    beagleFinalizeInstance(beagleInstance);
 
     // Normalize rates
-    std::vector<double> rDist = rates.getCategories();
-    const double rExpectation = std::inner_product(rDist.begin(), rDist.end(), rates.getProbabilities().begin(), 0.0);
+    std::vector<double> rDist = rates->getCategories();
+    const double rExpectation = std::inner_product(rDist.begin(), rDist.end(), rates->getProbabilities().begin(), 0.0);
     for(double& d : rDist)
         d /= rExpectation;
-    bpp::SimpleDiscreteDistribution normRates(rDist, rates.getProbabilities());
+
+    std::vector<std::unique_ptr<bpp::SubstitutionModel>> models;
+    models.emplace_back(model->clone());
+    std::vector<std::unique_ptr<bpp::DiscreteDistribution>> rateDists;
+    rateDists.emplace_back(new bpp::SimpleDiscreteDistribution(rDist, rates->getProbabilities()));
+
+    star_optim::StarTreeOptimizer optimizer(models, rateDists);
+    const size_t partition = 0;
+    const double starLL = optimizer.starLikelihood(sequences, partition);
 
     VectorSiteContainer sites = createSites(sequences[0]);
 
@@ -79,7 +81,7 @@ void checkAgainstBpp(const std::vector<Sequence>& sequences,
     c2->setDistanceToFather(sequences[0].distance / 2);
     TreeTemplate<Node> tree(root);
 
-    RHomogeneousTreeLikelihood calc(tree, sites, &model, &normRates, true, false);
+    RHomogeneousTreeLikelihood calc(tree, sites, model.get(), rateDists[0].get(), true, false);
     calc.initialize();
     calc.computeTreeLikelihood();
 
@@ -90,8 +92,8 @@ void checkAgainstBpp(const std::vector<Sequence>& sequences,
 
 TEST(GTR, simple_jc) {
     bpp::DNA dna;
-    bpp::GTR model(&dna);
-    bpp::ConstantDistribution rates(1.0);
+    std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
+    std::unique_ptr<bpp::DiscreteDistribution> rates(new bpp::ConstantDistribution(1.0));
 
     std::vector<Sequence> v { Sequence() };
     Sequence& s = v.front();
@@ -111,8 +113,8 @@ TEST(GTR, simple_jc) {
 
 TEST(GTR, known_distance) {
     bpp::DNA dna;
-    bpp::GTR model(&dna);
-    bpp::ConstantDistribution rates(1.0);
+    std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
+    std::unique_ptr<bpp::DiscreteDistribution> rates(new bpp::ConstantDistribution(1.0));
 
     std::vector<Sequence> v { Sequence() };
 
@@ -132,12 +134,12 @@ TEST(GTR, known_distance) {
 
 TEST(GTR, gamma_variation) {
     bpp::DNA dna;
-    bpp::GTR model(&dna);
-    bpp::GammaDiscreteDistribution rates(4, 1.2, 1);
+    std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
+    std::unique_ptr<bpp::DiscreteDistribution> rates(new bpp::GammaDiscreteDistribution(4, 1.2, 1));
 
-    model.setParameterValue("a", 0.5);
-    model.setParameterValue("theta", 0.6);
-    model.setParameterValue("theta1", 0.4);
+    model->setParameterValue("a", 0.5);
+    model->setParameterValue("theta", 0.6);
+    model->setParameterValue("theta1", 0.4);
 
     std::vector<Sequence> v { Sequence() };
 

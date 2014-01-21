@@ -255,29 +255,15 @@ int main(const int argc, const char** argv)
         models.emplace_back(substitutionModelForName(model_name));
         rates.emplace_back(rateDistributionForName(rate_dist_name));
     }
-    std::vector<std::vector<int>> beagleInstances(1);
 
-#ifdef _OPENMP
-    beagleInstances.resize(omp_get_max_threads());
-#endif
-    for(std::vector<int>& v : beagleInstances) {
-        for(size_t i = 0; i < models.size(); i++) {
-            v.push_back(star_optim::createBeagleInstance(*models[i], *rates[i]));
-        }
-    }
+    star_optim::StarTreeOptimizer optimizer(models, rates);
+    optimizer.optimize(models, rates, sequences, hky85KappaPrior);
 
-    star_optim::optimize(beagleInstances, models, rates, sequences, hky85KappaPrior);
-
-    const double finalLike = star_optim::starLikelihood(beagleInstances, models, rates, sequences, hky85KappaPrior);
+    const double finalLike = optimizer.starLikelihood(models, rates, sequences, hky85KappaPrior);
     std::clog << "final log-like: " << finalLike << '\n';
 
     std::ofstream out(output_path);
     writeResults(out, models, rates, sequences, finalLike, !no_branch_lengths);
-
-    for(const std::vector<int>& v : beagleInstances) {
-        for(const int i : v)
-            beagleFinalizeInstance(i);
-    }
 
     google::protobuf::ShutdownProtobufLibrary();
     return 0;

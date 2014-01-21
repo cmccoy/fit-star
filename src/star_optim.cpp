@@ -198,92 +198,6 @@ int createBeagleInstance(const bpp::SubstitutionModel& model,
     return instance;
 }
 
-/// \brief Calculate the likelihood of a collection of sequences under the star tree model
-///
-/// \param instances - a vector, with one entry per thread, with a vector containing a BEAGLE instance ID for each
-/// partition.
-double starLikelihood(const std::vector<std::vector<int>>& instances,
-                      const std::vector<std::unique_ptr<bpp::SubstitutionModel>>& model,
-                      const std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
-                      const std::vector<Sequence>& sequences,
-                      const double hky85KappaPrior)
-{
-    double result = 0.0;
-
-    for(const std::vector<int>& v : instances) {
-        for(size_t i = 0; i < v.size(); i++) {
-            updateBeagleInstance(v[i], *model[i], *rates[i]);
-        }
-    }
-
-    double prior = 0.0;
-    for(size_t i = 0; i < model.size(); i++) {
-        result += starLikelihood(instances, sequences, i);
-        if(hky85KappaPrior > 0.0) {
-            assert(model[i]->hasParameter("kappa") && "Model does not have kappa?");
-            boost::math::lognormal_distribution<double> distn(1, hky85KappaPrior);
-            prior += std::log(boost::math::pdf(distn, model[i]->getParameterValue("kappa")));
-        }
-    }
-
-    return result + prior;
-}
-
-/// \brief Calculate the likelihood of a collection of sequences under the star tree model
-///
-/// \param instances - a vector, with one entry per thread, with a vector containing a BEAGLE instance ID for each
-/// partition.
-double starLikelihood(const std::vector<std::vector<int>>& instances,
-                      const std::vector<Sequence>& sequences,
-                      const size_t partition)
-{
-    double result = 0.0;
-#ifdef _OPENMP
-    #pragma omp parallel for reduction(+:result)
-#endif
-    for(size_t i = 0; i < sequences.size(); i++) {
-        int instance_idx = 0;
-#ifdef _OPENMP
-        instance_idx = omp_get_thread_num();
-#endif
-        const int instance = instances[instance_idx][partition];
-        result += pairLogLikelihood(instance, sequences[i].substitutions[partition], sequences[i].distance);
-    }
-    return result;
-}
-
-/// \brief estimate branch lengths
-void estimateBranchLengths(const std::vector<std::vector<int>>& instances,
-                           std::vector<Sequence>& sequences)
-{
-#ifdef _OPENMP
-    #pragma omp parallel for
-#endif
-    for(size_t i = 0; i < sequences.size(); i++) {
-        int idx = 0;
-#ifdef _OPENMP
-        idx = omp_get_thread_num();
-#endif
-        Sequence& s = sequences[i];
-        std::vector<int> inst = instances[idx];
-
-        auto f = [&inst, &s](const double d) {
-            assert(!std::isnan(d) && "NaN distance?");
-            s.distance = d;
-            double result = 0.0;
-            for(size_t i = 0; i < inst.size(); i++)
-                result += pairLogLikelihood(inst[i], s.substitutions[i], s.distance);
-            return -result;
-        };
-
-        boost::uintmax_t max_iter = 100;
-        std::pair<double, double> res =
-            boost::math::tools::brent_find_minima(f, 1e-6, 0.8, 50, max_iter);
-        assert(!std::isnan(res.first) && "NaN distance?");
-        s.distance = res.first;
-    }
-}
-
 struct Parameter
 {
     bpp::Parametrizable* source;
@@ -306,7 +220,7 @@ struct NlOptParams {
     std::vector<Parameter>* paramList;
     std::vector<std::unique_ptr<bpp::SubstitutionModel>>* model;
     std::vector<std::unique_ptr<bpp::DiscreteDistribution>>* rates;
-    const std::vector<std::vector<int>>* instances;
+    StarTreeOptimizer* optimizer;
     const double hky85KappaPrior;
 };
 
@@ -320,18 +234,48 @@ double nlLogLike(const std::vector<double>& x, std::vector<double>& grad, void* 
         params->paramList->operator[](i).setValue(x[i]);
     }
 
-    return starLikelihood(*params->instances, *params->model, *params->rates, *params->sequences, params->hky85KappaPrior);
+    return params->optimizer->starLikelihood(*params->model, *params->rates, *params->sequences, params->hky85KappaPrior);
+}
+
+
+// StarTreeOptimizer
+StarTreeOptimizer::StarTreeOptimizer(std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
+                                     std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates) :
+        models_(models),
+        rates_(rates),
+        threshold_(0.1),
+        max_rounds_(30),
+        max_iter_(300),
+        bit_tol_(50),
+        min_subs_param_(1e-5),
+        max_subs_param_(20.0)
+{
+    beagleInstances_.resize(1);
+#ifdef _OPENMP
+    beagleInstances_.resize(omp_get_max_threads());
+#endif
+    for(std::vector<int>& v : beagleInstances_) {
+        for(size_t i = 0; i < models.size(); i++) {
+            v.push_back(star_optim::createBeagleInstance(*models[i], *rates[i]));
+        }
+    }
+}
+
+StarTreeOptimizer::~StarTreeOptimizer()
+{
+    for(const std::vector<int>& v : beagleInstances_)
+        for(const int i : v)
+            beagleFinalizeInstance(i);
 }
 
 /// \brief Optimize the model & branch lengths distribution for a collection of sequences
-size_t optimize(const std::vector<std::vector<int>>& beagleInstances,
-                std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
-                std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
-                std::vector<Sequence>& sequences,
-                const double hky85KappaPrior,
-                const bool verbose)
+size_t StarTreeOptimizer::optimize(std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
+                                   std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
+                                   std::vector<Sequence>& sequences,
+                                   const double hky85KappaPrior,
+                                   const bool verbose)
 {
-    double lastLogLike = starLikelihood(beagleInstances, models, rates, sequences, hky85KappaPrior);
+    double lastLogLike = starLikelihood(models, rates, sequences, hky85KappaPrior);
 
     if(verbose) {
         std::clog << "initial: " << lastLogLike << "\n";
@@ -360,7 +304,7 @@ size_t optimize(const std::vector<std::vector<int>>& beagleInstances,
             // First, substitution model
             nlopt::opt opt(nlopt::LN_BOBYQA, nParam);
             //nlopt::opt opt(nlopt::LN_COBYLA, nParam);
-            NlOptParams optParams { &sequences, &params, &models, &rates, &beagleInstances, hky85KappaPrior };
+            NlOptParams optParams { &sequences, &params, &models, &rates, this, hky85KappaPrior };
             opt.set_max_objective(nlLogLike, &optParams);
 
             std::vector<double> lowerBounds(nParam, -std::numeric_limits<double>::max());
@@ -408,23 +352,21 @@ size_t optimize(const std::vector<std::vector<int>>& beagleInstances,
                 std::clog.flush();
             }
 
-            if(std::abs(logLike - lastLogLike) > IMPROVE_THRESH)
-                anyImproved = true;
+            anyImproved = anyImproved || std::abs(logLike - lastLogLike) > IMPROVE_THRESH;
             lastLogLike = logLike;
         }
 
 
         // then, branch lengths
-        estimateBranchLengths(beagleInstances, sequences);
-        logLike = starLikelihood(beagleInstances, models, rates, sequences, hky85KappaPrior);
+        estimateBranchLengths(sequences);
+        logLike = starLikelihood(models, rates, sequences, hky85KappaPrior);
 
         if(verbose) {
             std::clog << "iteration " << iter << " (branch lengths): " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
             std::clog.flush();
         }
 
-        if(std::abs(logLike - lastLogLike) > IMPROVE_THRESH)
-            anyImproved = true;
+        anyImproved = anyImproved || std::abs(logLike - lastLogLike) > IMPROVE_THRESH;
         lastLogLike = logLike;
 
         if(!anyImproved)
@@ -433,5 +375,87 @@ size_t optimize(const std::vector<std::vector<int>>& beagleInstances,
 
     return iter;
 }
+
+/// \brief Calculate the likelihood of a collection of sequences under the star tree model
+///
+/// \param instances - a vector, with one entry per thread, with a vector containing a BEAGLE instance ID for each
+/// partition.
+double StarTreeOptimizer::starLikelihood(const std::vector<std::unique_ptr<bpp::SubstitutionModel>>& model,
+                                          const std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
+                                          const std::vector<Sequence>& sequences,
+                                          const double hky85KappaPrior)
+{
+    double result = 0.0;
+
+    for(const std::vector<int>& v : beagleInstances_) {
+        for(size_t i = 0; i < v.size(); i++) {
+            updateBeagleInstance(v[i], *model[i], *rates[i]);
+        }
+    }
+
+    double prior = 0.0;
+    for(size_t i = 0; i < model.size(); i++) {
+        result += starLikelihood(sequences, i);
+        if(hky85KappaPrior > 0.0) {
+            assert(model[i]->hasParameter("kappa") && "Model does not have kappa?");
+            boost::math::lognormal_distribution<double> distn(1, hky85KappaPrior);
+            prior += std::log(boost::math::pdf(distn, model[i]->getParameterValue("kappa")));
+        }
+    }
+
+    return result + prior;
+}
+
+/// \brief Calculate the likelihood of a collection of sequences under the star tree model
+double StarTreeOptimizer::starLikelihood(const std::vector<Sequence>& sequences,
+                                         const size_t partition)
+{
+    double result = 0.0;
+#ifdef _OPENMP
+    #pragma omp parallel for reduction(+:result)
+#endif
+    for(size_t i = 0; i < sequences.size(); i++) {
+        int instance_idx = 0;
+#ifdef _OPENMP
+        instance_idx = omp_get_thread_num();
+#endif
+        const int instance = beagleInstances_[instance_idx][partition];
+        result += pairLogLikelihood(instance, sequences[i].substitutions[partition], sequences[i].distance);
+    }
+    return result;
+}
+
+/// \brief estimate branch lengths
+void StarTreeOptimizer::estimateBranchLengths(std::vector<Sequence>& sequences)
+{
+#ifdef _OPENMP
+    #pragma omp parallel for
+#endif
+    for(size_t i = 0; i < sequences.size(); i++) {
+        int idx = 0;
+#ifdef _OPENMP
+        idx = omp_get_thread_num();
+#endif
+        Sequence& s = sequences[i];
+        std::vector<int> inst = beagleInstances_[idx];
+
+        auto f = [&inst, &s](const double d) {
+            assert(!std::isnan(d) && "NaN distance?");
+            s.distance = d;
+            double result = 0.0;
+            for(size_t i = 0; i < inst.size(); i++)
+                result += pairLogLikelihood(inst[i], s.substitutions[i], s.distance);
+            return -result;
+        };
+
+        boost::uintmax_t max_iter = 100;
+        std::pair<double, double> res =
+            boost::math::tools::brent_find_minima(f, 1e-6, 0.8, 50, max_iter);
+        assert(!std::isnan(res.first) && "NaN distance?");
+        s.distance = res.first;
+    }
+}
+
+
 
 } // namespace
