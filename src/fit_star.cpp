@@ -226,7 +226,7 @@ int main(const int argc, const char** argv)
         return 0;
     }
     if(vm.count("version")) {
-        std::cout << star_fit::GTR_FIT_VERSION << '\n';
+        std::cout << star_fit::FIT_STAR_VERSION << '\n';
         return 0;
     }
 
