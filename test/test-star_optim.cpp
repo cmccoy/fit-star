@@ -75,7 +75,8 @@ TEST(GTR, simple_jc) {
     std::vector<Sequence> v { Sequence() };
     Sequence& s = v.front();
 
-    Eigen::Matrix4d& m = s.substitutions;
+    s.substitutions.resize(1);
+    Eigen::Matrix4d& m = s.substitutions[0];
     m.fill(0.0);
     m.diagonal() = Eigen::Vector4d::Constant(1.0);
 
@@ -96,7 +97,8 @@ TEST(GTR, known_distance) {
     std::vector<Sequence> v { Sequence() };
 
     Sequence& s = v.front();
-    s.substitutions <<
+    s.substitutions.resize(1);
+    s.substitutions[0] <<
         94, 3, 2, 1,
         2, 95, 2, 1,
         2, 4, 89, 5,
@@ -118,7 +120,9 @@ TEST(GTR, gamma_variation) {
     std::vector<Sequence> v { Sequence() };
 
     Sequence& s = v.front();
-    s.substitutions <<
+
+    s.substitutions.resize(1);
+    s.substitutions[0] <<
         94, 3, 2, 1,
         2, 95, 2, 1,
         2, 4, 89, 5,
