@@ -280,7 +280,7 @@ size_t StarTreeOptimizer::optimize()
     LOG_INFO(log) << "initial: " << lastLogLike << "\n";
 
     size_t iter = 0;
-    for(iter = 0; iter < maxRounds_; iter++) {
+    for(iter = 0; iter < maxRounds(); iter++) {
         bool anyImproved = false;
         double logLike;
 
@@ -329,6 +329,7 @@ size_t StarTreeOptimizer::optimize()
             opt.set_lower_bounds(lowerBounds);
             opt.set_upper_bounds(upperBounds);
             opt.set_ftol_abs(threshold());
+            opt.set_xtol_rel(0.001);
             opt.set_maxeval(maxIterations());
 
             std::vector<double> x(nParam);
@@ -371,9 +372,6 @@ size_t StarTreeOptimizer::optimize()
 }
 
 /// \brief Calculate the likelihood of a collection of sequences under the star tree model
-///
-/// \param instances - a vector, with one entry per thread, with a vector containing a BEAGLE instance ID for each
-/// partition.
 double StarTreeOptimizer::starLikelihood()
 {
     double result = 0.0;
