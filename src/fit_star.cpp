@@ -214,7 +214,8 @@ int main(const int argc, const char** argv)
     std::vector<std::string> inputPaths;
     bool no_branch_lengths = false;
     double hky85KappaPrior = -1;
-    double gammaAlpha = -1;
+    double gammaAlpha = -1, threshold = 0.1;
+    size_t maxRounds = 30;
 
     // command-line parsing
     po::options_description desc("Allowed options");
@@ -228,6 +229,8 @@ int main(const int argc, const char** argv)
     ("rate-dist,r", po::value(&rateDistName), "rate distribution [default: constant]")
     ("kappa-prior,k", po::value(&hky85KappaPrior), "Prior on HKY85 kappa [default: None]")
     ("gamma-alpha,g", po::value(&gammaAlpha), "Fix gamma rate distribtion to value")
+    ("threshold,t", po::value(&threshold), "Minimum improvement in an iteration to continue fitting")
+    ("max-rounds,r", po::value(&maxRounds), "Maximum number of fitting rounds")
     ("no-branch-lengths", po::bool_switch(&no_branch_lengths), "*do not* include fit branch lengths in output");
 
     po::variables_map vm;
@@ -284,8 +287,13 @@ int main(const int argc, const char** argv)
         optimizer.fitRates() = std::vector<bool>(nPartitions, true);
         optimizer.fitRates()[0] = false;
     }
+    if(vm.count("threshold"))
+        optimizer.threshold(threshold);
+    if(vm.count("max-rounds"))
+        optimizer.maxRounds(maxRounds);
 
     size_t rounds = optimizer.optimize();
+    LOG_INFO(logger) << "finished in " << rounds + 1 << " fitting rounds.\n";
 
     const double finalLike = optimizer.starLikelihood();
     LOG_INFO(logger) << "final log-like: " << finalLike << '\n';
