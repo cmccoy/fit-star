@@ -314,7 +314,7 @@ size_t StarTreeOptimizer::optimize()
                     upperBounds[i] = 20;
                 } else if (params[i].parameterName == "alpha") {
                     // The Bio++ implementation fails at small alpha
-                    lowerBounds[i] = 0.3;
+                    lowerBounds[i] = 0.1;
                     upperBounds[i] = 20;
                 } else if(!bp.hasConstraint())
                     continue;
