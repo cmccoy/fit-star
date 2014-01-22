@@ -107,12 +107,14 @@ std::unique_ptr<bpp::DiscreteDistribution> rateDistributionForName(const std::st
     std::transform(name.begin(), name.end(), lower.begin(), ::tolower);
 
     if(lower == "gamma") {
+        LOG_INFO(logger) << "Gamma rate distribution with 4 categories.\n";
         bpp::RateDistributionFactory factory(4);
         p result(factory.createDiscreteDistribution("Gamma"));
         // This is how Bio++ handles gamma discrete
         result->aliasParameters("alpha", "beta");
         return result;
     } else if(lower == "constant") {
+        LOG_INFO(logger) << "Constant rate distribution.\n";
         bpp::RateDistributionFactory factory(1);
         return p(factory.createDiscreteDistribution("Constant"));
     }
@@ -208,10 +210,11 @@ int main(const int argc, const char** argv)
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-    std::string outputPath, modelName = "GTR", rateDistName = "Constant";
+    std::string outputPath, modelName = "GTR", rateDistName = "constant";
     std::vector<std::string> inputPaths;
     bool no_branch_lengths = false;
     double hky85KappaPrior = -1;
+    double gammaAlpha = -1;
 
     // command-line parsing
     po::options_description desc("Allowed options");
@@ -224,6 +227,7 @@ int main(const int argc, const char** argv)
     ("model,m", po::value(&modelName), "model [default: GTR]")
     ("rate-dist,r", po::value(&rateDistName), "rate distribution [default: constant]")
     ("kappa-prior,k", po::value(&hky85KappaPrior), "Prior on HKY85 kappa [default: None]")
+    ("gamma-alpha,g", po::value(&gammaAlpha), "Fix gamma rate distribtion to value")
     ("no-branch-lengths", po::bool_switch(&no_branch_lengths), "*do not* include fit branch lengths in output");
 
     po::variables_map vm;
@@ -239,12 +243,16 @@ int main(const int argc, const char** argv)
         return 0;
     }
 
+    po::notify(vm);
+
     if(vm.count("kappa-prior") && modelName != "HKY85") {
         LOG_FATAL(logger) << "kappa prior is not compatible with model " << modelName << '\n';
         return 1;
     }
-
-    po::notify(vm);
+    if(vm.count("gamma-alpha") && rateDistName != "gamma") {
+        LOG_FATAL(logger) << "Specifying gamma alpha requires `--rate-dist gamma` (got " << rateDistName << ")\n";
+        return 1;
+    }
 
     std::vector<Sequence> sequences;
     for(const std::string& path : inputPaths) {
@@ -268,6 +276,14 @@ int main(const int argc, const char** argv)
     star_optim::StarTreeOptimizer optimizer(models, rates, sequences);
     if(vm.count("kappa-prior"))
         optimizer.hky85KappaPrior(hky85KappaPrior);
+    if(vm.count("gamma-alpha")) {
+        for(auto &r : rates)
+            r->setParameterValue("alpha", gammaAlpha);
+        optimizer.fitRates() = std::vector<bool>(nPartitions, false);
+    } else if(rateDistName == "constant") {
+        optimizer.fitRates() = std::vector<bool>(nPartitions, true);
+        optimizer.fitRates()[0] = false;
+    }
 
     size_t rounds = optimizer.optimize();
 

@@ -131,20 +131,16 @@ void updateBeagleInstance(const int instance,
     const int nStates = model.getNumberOfStates();
     std::vector<double> r = rates.getCategories();
     std::vector<double> p = rates.getProbabilities();
-    //const double expectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
 
-    //for(int i = 0; i < r.size(); i++)
-        //r[i] = r[i] / expectation;
-
-    const double normExpectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
-    if(std::abs(normExpectation - 1.0) > 1e-2) {
-        LOG_INFO(log) << "Expected rate: " << normExpectation << '\n';
-        auto pList = rates.getParameters();
-        for(int i = 0; i < pList.size(); i++) {
-            LOG_WARN(log) << pList[i].getName() << "\t=\t" << pList[i].getValue() << '\n';
-        }
-        assert(false && "Expected rate is not 1.0");
-    }
+    //const double normExpectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
+    //if(std::abs(normExpectation - 1.0) > 1e-2) {
+        //LOG_INFO(log) << "Expected rate: " << normExpectation << '\n';
+        //auto pList = rates.getParameters();
+        //for(int i = 0; i < pList.size(); i++) {
+            //LOG_WARN(log) << pList[i].getName() << "\t=\t" << pList[i].getValue() << '\n';
+        //}
+        //assert(false && "Expected rate is not 1.0");
+    //}
 
     // Fill rates
     beagleSetCategoryRates(instance, r.data());
@@ -252,8 +248,12 @@ StarTreeOptimizer::StarTreeOptimizer(std::vector<std::unique_ptr<bpp::Substituti
         bitTolerance_(50),
         minSubsParam_(1e-5),
         maxSubsParam_(20.0),
-        hky85KappaPrior_(-1.0)
+        hky85KappaPrior_(-1.0),
+        fitRates_(std::vector<bool>(models.size(), true))
 {
+    CHECK_EQUAL(log, models_.size(), rates_.size()) << "# of models does not match number of rate distributions.\n";
+    CHECK_EQUAL(log, fitRates_.size(), models.size()) << "# of rates to fit does not match model size\n";
+
     beagleInstances_.resize(1);
 #ifdef _OPENMP
     beagleInstances_.resize(omp_get_max_threads());
@@ -292,10 +292,10 @@ size_t StarTreeOptimizer::optimize()
                 params.push_back(Parameter { static_cast<bpp::Parametrizable*>(model), model->getParameterNameWithoutNamespace(s) });
             }
             for(const std::string& s : r->getIndependentParameters().getParameterNames()) {
-                // fix the rate in position 1 at 1.0
-                if((idx != 0 || s != "Constant.value"))
-                    params.push_back(Parameter { static_cast<bpp::Parametrizable*>(r), r->getParameterNameWithoutNamespace(s) });
-                assert(s != "Gamma.beta" && "Gamma.beta should be aliased");
+                CHECK(log, s != "Gamma.beta") << "Gamma.beta should be aliased\n";
+                if(!fitRates_[idx]) 
+                    continue;
+                params.push_back(Parameter { static_cast<bpp::Parametrizable*>(r), r->getParameterNameWithoutNamespace(s) });
             }
             const size_t nParam = params.size();
 

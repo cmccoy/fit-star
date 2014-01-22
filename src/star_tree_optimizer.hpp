@@ -47,6 +47,10 @@ public:
     double& hky85KappaPrior() { return hky85KappaPrior_; };
     const double& hky85KappaPrior() const { return hky85KappaPrior_; };
     void hky85KappaPrior(const double value) { hky85KappaPrior_ = value; }
+    /// Should the rate distribution be fit for each partition?
+    std::vector<bool>& fitRates() { return fitRates_; };
+    const std::vector<bool>& fitRates() const { return fitRates_; };
+    void fitRates(const std::vector<bool> value) { fitRates_ = value; }
 
     StarTreeOptimizer(std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
                       std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
@@ -68,6 +72,7 @@ private:
     double threshold_;
     size_t maxRounds_, maxIterations_, bitTolerance_;
     double minSubsParam_, maxSubsParam_, hky85KappaPrior_;
+    std::vector<bool> fitRates_;
 };
 
 }
