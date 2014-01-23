@@ -129,8 +129,9 @@ TEST(GTR, gamma_variation) {
     std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
     bpp::RateDistributionFactory fac(4);
     std::unique_ptr<bpp::DiscreteDistribution> rates(fac.createDiscreteDistribution("Gamma"));
-    rates->aliasParameters("alpha", "beta");
     rates->setParameterValue("alpha", 1.2);
+
+    EXPECT_NEAR(1.2, rates->getParameterValue("beta"), 1e-6);
 
     model->setParameterValue("a", 0.5);
     model->setParameterValue("theta", 0.6);

@@ -2,6 +2,7 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <vector>
 #include "mutationio.pb.h"
@@ -24,11 +25,11 @@
 
 // Bio++
 #include <Bpp/Phyl/Model/RateDistributionFactory.h>
-#include <Bpp/Phyl/Model/GTR.h>
-#include <Bpp/Phyl/Model/HKY85.h>
-#include <Bpp/Phyl/Model/TN93.h>
-#include <Bpp/Phyl/Model/JCnuc.h>
-#include <Bpp/Seq/Alphabet/DNA.h>
+#include <Bpp/Phyl/Model/Nucleotide/GTR.h>
+#include <Bpp/Phyl/Model/Nucleotide/HKY85.h>
+#include <Bpp/Phyl/Model/Nucleotide/TN93.h>
+#include <Bpp/Phyl/Model/Nucleotide/JCnuc.h>
+#include <Bpp/Seq/Alphabet/AlphabetTools.h>
 
 #include <cpplog.hpp>
 
@@ -37,8 +38,6 @@
 #endif
 
 namespace po = boost::program_options;
-
-const bpp::DNA DNA;
 
 cpplog::StdErrLogger logger;
 
@@ -72,6 +71,7 @@ void loadSequencesFromFile(const std::string& file_path, std::vector<Sequence>& 
             for(size_t i = 0; i < 4; i++)
                 for(size_t j = 0; j < 4; j++)
                     sequence.substitutions[p](i, j) = partition.substitution(4 * i + j);
+            ///sequence.partitionNames.push_back(partition.name());
         }
 
         // TODO: use mutation count
@@ -90,13 +90,13 @@ std::unique_ptr<bpp::SubstitutionModel> substitutionModelForName(const std::stri
     std::string upper = name;
     std::transform(name.begin(), name.end(), upper.begin(), ::toupper);
     if(upper == "GTR")
-        return p(new bpp::GTR(&DNA));
+        return p(new bpp::GTR(&bpp::AlphabetTools::DNA_ALPHABET));
     else if(upper == "HKY85")
-        return p(new bpp::HKY85(&DNA));
+        return p(new bpp::HKY85(&bpp::AlphabetTools::DNA_ALPHABET));
     else if(upper == "TN93")
-        return p(new bpp::TN93(&DNA));
+        return p(new bpp::TN93(&bpp::AlphabetTools::DNA_ALPHABET));
     else if(upper == "JC")
-        return p(new bpp::JCnuc(&DNA));
+        return p(new bpp::JCnuc(&bpp::AlphabetTools::DNA_ALPHABET));
     throw std::runtime_error("Unknown model: " + name);
 }
 
@@ -110,8 +110,10 @@ std::unique_ptr<bpp::DiscreteDistribution> rateDistributionForName(const std::st
         LOG_INFO(logger) << "Gamma rate distribution with 4 categories.\n";
         bpp::RateDistributionFactory factory(4);
         p result(factory.createDiscreteDistribution("Gamma"));
-        // This is how Bio++ handles gamma discrete
-        result->aliasParameters("alpha", "beta");
+        // Check
+        std::vector<std::string> indNames = result->getIndependentParameters().getParameterNames();
+        CHECK_EQUAL(logger, std::count(indNames.begin(), indNames.end(), "Gamma.beta"), 0) << "Beta parameter should be aliased.\n";
+        CHECK_EQUAL(logger, std::count(indNames.begin(), indNames.end(), "Gamma.alpha"), 1) << "Alpha parameter should be estimated.\n";
         return result;
     } else if(lower == "constant") {
         LOG_INFO(logger) << "Constant rate distribution.\n";
@@ -161,7 +163,7 @@ void writeResults(std::ostream& out,
         }
         Json::Value rateRates(Json::arrayValue);
         Json::Value rateProbs(Json::arrayValue);
-        for(unsigned int i = 0; i < r.getNumberOfCategories(); i++) {
+        for(size_t i = 0; i < r.getNumberOfCategories(); i++) {
             rateRates.append(r.getCategory(i));
             rateProbs.append(r.getProbability(i));
         }
@@ -262,12 +264,18 @@ int main(const int argc, const char** argv)
         loadSequencesFromFile(path, sequences);
     }
 
-    const size_t nPartitions = sequences[0].substitutions.size();
+
+    std::map<std::string, int> partitionIndices;
     for(const Sequence& sequence : sequences) {
-        assert(nPartitions == sequence.substitutions.size() && "Varying number of partitions");
+        for(const std::string& s : sequence.partitionNames) {
+            if(partitionIndices.count(s) == 0)
+                partitionIndices[s] = partitionIndices.size();
+        }
     }
 
     LOG_INFO(logger) << sequences.size() << " sequences." << '\n';
+    LOG_INFO(logger) << partitionIndices.size() << " partitions." << '\n';
+    const size_t nPartitions = partitionIndices.size();
 
     std::vector<std::unique_ptr<bpp::SubstitutionModel>> models;
     std::vector<std::unique_ptr<bpp::DiscreteDistribution>> rates;

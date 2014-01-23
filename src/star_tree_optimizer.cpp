@@ -320,7 +320,7 @@ size_t StarTreeOptimizer::optimize()
                     continue;
                 else {
                     // TODO: changes in bpp 2.1
-                    bpp::Interval* constraint = dynamic_cast<bpp::Interval*>(bp.getConstraint());
+                    bpp::IntervalConstraint* constraint = dynamic_cast<bpp::IntervalConstraint*>(bp.getConstraint());
                     assert(constraint != nullptr);
                     lowerBounds[i] = constraint->getLowerBound() + 1e-7;
                     upperBounds[i] = std::min(constraint->getUpperBound(), 20.0);
