@@ -19,7 +19,7 @@
 #include "fit_star_config.h"
 #include "star_tree_optimizer.hpp"
 #include "sequence.hpp"
-#include "protobuftools.hpp"
+#include "protobuf_util.hpp"
 
 // Beagle
 #include "libhmsbeagle/beagle.h"

@@ -1,5 +1,5 @@
-#ifndef PROTOBUFTOOLS_H
-#define PROTOBUFTOOLS_H
+#ifndef PROTOBUF_UTIL_H
+#define PROTOBUF_UTIL_H
 
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream.h>

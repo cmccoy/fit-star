@@ -18,7 +18,7 @@
 #include "mutationio.pb.h"
 #include "fit_star_config.h"
 #include "sam_util.hpp"
-#include "protobuftools.hpp"
+#include "protobuf_util.hpp"
 
 namespace po = boost::program_options;
 namespace protoio = google::protobuf::io;
