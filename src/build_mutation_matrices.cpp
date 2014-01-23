@@ -17,6 +17,7 @@
 
 #include "mutationio.pb.h"
 #include "fit_star_config.h"
+#include "sam_util.hpp"
 
 namespace po = boost::program_options;
 namespace protoio = google::protobuf::io;
@@ -43,7 +44,9 @@ inline int nt16ToIdx(const int b)
 
 mutationio::MutationCount mutationCountOfSequence(const bam1_t* b, const std::string& ref, const bool no_ambiguous, const bool by_codon = false)
 {
+    assert(b != nullptr && "null bam record");
     mutationio::MutationCount count;
+    assert(bam1_qname(b) != nullptr);
     count.set_name(bam1_qname(b));
     std::vector<std::vector<int>> partitions(by_codon ? 3 : 1);
     for(std::vector<int>& v : partitions)
@@ -91,22 +94,6 @@ int usage(po::options_description& desc)
 }
 
 
-struct SamFile {
-    SamFile(const std::string& path, const std::string& mode = "rb", void* extra = nullptr) :
-        fp(samopen(path.c_str(), mode.c_str(), extra))
-    {
-        assert(fp != nullptr && "Failed to open BAM");
-    }
-
-    ~SamFile()
-    {
-        if(fp != nullptr)
-            samclose(fp);
-    }
-
-    samfile_t* fp;
-};
-
 int main(int argc, char* argv[])
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -146,7 +133,6 @@ int main(int argc, char* argv[])
     faidx_t* fidx = fai_load(fastaPath.c_str());
     assert(fidx != NULL && "Failed to load FASTA index");
 
-    bam1_t* b = bam_init1();
     size_t processed = 0;
 
     std::fstream out(outputPath, std::ios::out | std::ios::trunc | std::ios::binary);
@@ -159,30 +145,35 @@ int main(int argc, char* argv[])
 
     for(const std::string& bamPath : bamPaths) {
         SamFile in(bamPath);
+        SamRecord record;
+
         std::vector<std::string> targetBases(in.fp->header->n_targets);
         std::vector<int> targetLen(in.fp->header->n_targets);
-        while(samread(in.fp, b) >= 0) {
+        for(SamIterator it(in.fp, record.record), end; it != end; it++) {
+            assert(*it != nullptr);
             if(maxRecords > 0 && processed > maxRecords)
                 break;
             processed++;
-            const char* target_name = in.fp->header->target_name[b->core.tid];
-            if(targetBases[b->core.tid].empty()) {
-                char* ref = fai_fetch(fidx, target_name, &targetLen[b->core.tid]);
+            const char* target_name = in.fp->header->target_name[(*it)->core.tid];
+            if(targetBases[(*it)->core.tid].empty()) {
+                char* ref = fai_fetch(fidx, target_name, &targetLen[(*it)->core.tid]);
                 assert(ref != nullptr && "Missing reference");
-                targetBases[b->core.tid] = ref;
+                targetBases[(*it)->core.tid] = ref;
                 free(ref);
             }
 
-            const std::string& ref = targetBases[b->core.tid];
+            const std::string& ref = targetBases[(*it)->core.tid];
 
-            mutationio::MutationCount count = mutationCountOfSequence(b, ref, no_ambiguous, by_codon);
+            const char* qname = bam1_qname(*it);
+            assert(qname != nullptr && "Null query name");
+
+            mutationio::MutationCount count = mutationCountOfSequence(*it, ref, no_ambiguous, by_codon);
 
             codedOut.WriteVarint32(count.ByteSize());
             count.SerializeWithCachedSizes(&codedOut);
         }
     }
 
-    bam_destroy1(b);
     fai_destroy(fidx);
 
     google::protobuf::ShutdownProtobufLibrary();
