@@ -11,7 +11,7 @@ pkg_check_modules(HMS_BEAGLE hmsbeagle-2 REQUIRED)
 include_directories(${HMS_BEAGLE_INCLUDE_DIRS})
 link_directories(${HMS_BEAGLE_LIBRARY_DIRS})
 
-add_executable(${PROJECT_TEST_NAME} EXCLUDE_FROM_ALL test-main.cpp test-star_optim.cpp)
+add_executable(${PROJECT_TEST_NAME} EXCLUDE_FROM_ALL test-main.cpp test-star_optim.cpp test-log_tricks.cpp)
 target_link_libraries(${PROJECT_TEST_NAME} gtest gtest_main libstaropt)
 target_link_libraries(${PROJECT_TEST_NAME} bpp-phyl bpp-seq bpp-core)
 set_property(TARGET ${PROJECT_TEST_MAIN} PROPERTY COMPILE_FLAGS "-fopenmp")
