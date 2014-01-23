@@ -18,7 +18,7 @@
 
 #include "fit_star_config.h"
 #include "star_tree_optimizer.hpp"
-#include "sequence.hpp"
+#include "aligned_pair.hpp"
 #include "protobuf_util.hpp"
 
 // Beagle
@@ -42,11 +42,11 @@ namespace po = boost::program_options;
 
 cpplog::StdErrLogger logger;
 
-void loadSequencesFromFile(const std::string& file_path, std::vector<Sequence>& dest)
+void loadAlignedPairsFromFile(const std::string& file_path, std::vector<AlignedPair>& dest)
 {
     std::fstream in(file_path, std::ios::binary | std::ios::in);
     for(DelimitedProtocolBufferIterator<mutationio::MutationCount> it(in, true), end; it != end; it++) {
-        Sequence sequence;
+        AlignedPair sequence;
         const mutationio::MutationCount& m = *it;
         if(m.has_name())
             sequence.name = m.name();
@@ -113,7 +113,7 @@ std::unique_ptr<bpp::DiscreteDistribution> rateDistributionForName(const std::st
 void writeResults(std::ostream& out,
                   const std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
                   const std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
-                  const std::vector<Sequence>& sequences,
+                  const std::vector<AlignedPair>& sequences,
                   const double logLikelihood,
                   const bool include_branch_lengths = true)
 {
@@ -122,7 +122,7 @@ void writeResults(std::ostream& out,
 
     assert(models.size() == rates.size() && "Different number of rates / models");
 
-    auto f = [](double acc, const Sequence & s) { return acc + s.distance; };
+    auto f = [](double acc, const AlignedPair & s) { return acc + s.distance; };
     const double meanBranchLength = std::accumulate(sequences.begin(), sequences.end(), 0.0, f) / sequences.size();
     root["meanBranchLength"] = meanBranchLength;
 
@@ -187,7 +187,7 @@ void writeResults(std::ostream& out,
     root["logLikelihood"] = logLikelihood;
     if(include_branch_lengths) {
         Json::Value blNode(Json::arrayValue);
-        for(const Sequence& sequence : sequences)
+        for(const AlignedPair& sequence : sequences)
             blNode.append(sequence.distance);
         root["branchLengths"] = blNode;
     }
@@ -246,15 +246,15 @@ int main(const int argc, const char** argv)
         return 1;
     }
 
-    std::vector<Sequence> sequences;
+    std::vector<AlignedPair> sequences;
     for(const std::string& path : inputPaths) {
         LOG_INFO(logger) << "Loading from " << path << '\n';
-        loadSequencesFromFile(path, sequences);
+        loadAlignedPairsFromFile(path, sequences);
     }
 
 
     std::map<std::string, int> partitionIndices;
-    for(const Sequence& sequence : sequences) {
+    for(const AlignedPair& sequence : sequences) {
         for(const std::string& s : sequence.partitionNames) {
             if(partitionIndices.count(s) == 0)
                 partitionIndices[s] = partitionIndices.size();

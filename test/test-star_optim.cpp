@@ -3,7 +3,7 @@
 #include <iostream>
 #include "gtest/gtest.h"
 #include "star_tree_optimizer.hpp"
-#include "sequence.hpp"
+#include "aligned_pair.hpp"
 
 #include "libhmsbeagle/beagle.h"
 
@@ -20,7 +20,7 @@
 
 bpp::DNA DNA;
 
-bpp::VectorSiteContainer createSites(const Sequence& sequence)
+bpp::VectorSiteContainer createSites(const AlignedPair& sequence)
 {
     std::vector<std::string> names {"ref", "qry" };
     std::vector<std::string> seqs(2);
@@ -43,7 +43,7 @@ bpp::VectorSiteContainer createSites(const Sequence& sequence)
     return result;
 }
 
-void checkAgainstBpp(std::vector<Sequence>& sequences,
+void checkAgainstBpp(std::vector<AlignedPair>& sequences,
                      std::unique_ptr<bpp::SubstitutionModel>& model,
                      std::unique_ptr<bpp::DiscreteDistribution>& rates,
                      double& logL)
@@ -86,8 +86,8 @@ TEST(GTR, simple_jc) {
     bpp::RateDistributionFactory fac(4);
     std::unique_ptr<bpp::DiscreteDistribution> rates(fac.createDiscreteDistribution("Constant"));
 
-    std::vector<Sequence> v { Sequence() };
-    Sequence& s = v.front();
+    std::vector<AlignedPair> v { AlignedPair() };
+    AlignedPair& s = v.front();
 
     s.substitutions.resize(1);
     Eigen::Matrix4d& m = s.substitutions[0];
@@ -108,9 +108,9 @@ TEST(GTR, known_distance) {
     bpp::RateDistributionFactory fac(4);
     std::unique_ptr<bpp::DiscreteDistribution> rates(fac.createDiscreteDistribution("Constant"));
 
-    std::vector<Sequence> v { Sequence() };
+    std::vector<AlignedPair> v { AlignedPair() };
 
-    Sequence& s = v.front();
+    AlignedPair& s = v.front();
     s.substitutions.resize(1);
     s.substitutions[0] <<
         94, 3, 2, 1,
@@ -137,9 +137,9 @@ TEST(GTR, gamma_variation) {
     model->setParameterValue("theta", 0.6);
     model->setParameterValue("theta1", 0.4);
 
-    std::vector<Sequence> v { Sequence() };
+    std::vector<AlignedPair> v { AlignedPair() };
 
-    Sequence& s = v.front();
+    AlignedPair& s = v.front();
 
     s.substitutions.resize(1);
     s.substitutions[0] <<

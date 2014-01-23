@@ -3,9 +3,9 @@
 
 #include <cstdlib>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
-struct Sequence;
 
 namespace bpp
 {
@@ -15,6 +15,14 @@ class DiscreteDistribution;
 
 namespace star_optim
 {
+
+struct AlignedPair;
+
+struct PartitionModel
+{
+    bpp::SubstitutionModel* model;
+    bpp::DiscreteDistribution* rateDist;
+};
 
 class StarTreeOptimizer
 {
@@ -48,31 +56,29 @@ public:
     const double& hky85KappaPrior() const { return hky85KappaPrior_; };
     void hky85KappaPrior(const double value) { hky85KappaPrior_ = value; }
     /// Should the rate distribution be fit for each partition?
-    std::vector<bool>& fitRates() { return fitRates_; };
-    const std::vector<bool>& fitRates() const { return fitRates_; };
-    void fitRates(const std::vector<bool> value) { fitRates_ = value; }
+    std::unordered_map<std::string, bool>& fitRates() { return fitRates_; };
+    const std::unordered_map<std::string, bool>& fitRates() const { return fitRates_; };
+    void fitRates(const std::unordered_map<std::string, bool> value) { fitRates_ = value; }
 
-    StarTreeOptimizer(std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
-                      std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
-                      std::vector<Sequence>& sequences);
+    StarTreeOptimizer(const std::unordered_map<std::string, PartitionModel>& models,
+                      std::vector<AlignedPair>& sequences);
     ~StarTreeOptimizer();
 
     size_t optimize();
     /// \brief calculate the star-tree likelihood
-    double starLikelihood(const size_t partition);
+    double starLikelihood(const std::string& partition);
 
     double starLikelihood();
     /// \brief estimate branch lengths
     void estimateBranchLengths();
 private:
-    std::vector<std::vector<int>> beagleInstances_;
-    std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models_;
-    std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates_;
-    std::vector<Sequence>& sequences_;
+    std::vector<std::unordered_map<std::string, int>> beagleInstances_;
+    std::unordered_map<std::string, PartitionModel> partitionModels_;
+    std::vector<AlignedPair>& sequences_;
     double threshold_;
     size_t maxRounds_, maxIterations_, bitTolerance_;
     double minSubsParam_, maxSubsParam_, hky85KappaPrior_;
-    std::vector<bool> fitRates_;
+    std::unordered_map<std::string, bool> fitRates_;
 };
 
 }

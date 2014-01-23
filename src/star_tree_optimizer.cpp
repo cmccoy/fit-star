@@ -1,5 +1,5 @@
 #include "star_tree_optimizer.hpp"
-#include "sequence.hpp"
+#include "aligned_pair.hpp"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -236,11 +236,9 @@ double nlLogLike(const std::vector<double>& x, std::vector<double>& grad, void* 
 
 
 // StarTreeOptimizer
-StarTreeOptimizer::StarTreeOptimizer(std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
-                                     std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
-                                     std::vector<Sequence>& sequences) :
-        models_(models),
-        rates_(rates),
+StarTreeOptimizer::StarTreeOptimizer(const std::unordered_map<std::string, PartitionModel>& models,
+                                     std::vector<AlignedPair>& sequences) :
+        partitionModels_(models),
         sequences_(sequences),
         threshold_(0.1),
         maxRounds_(30),
@@ -248,28 +246,28 @@ StarTreeOptimizer::StarTreeOptimizer(std::vector<std::unique_ptr<bpp::Substituti
         bitTolerance_(50),
         minSubsParam_(1e-5),
         maxSubsParam_(20.0),
-        hky85KappaPrior_(-1.0),
-        fitRates_(std::vector<bool>(models.size(), true))
+        hky85KappaPrior_(-1.0)
 {
-    CHECK_EQUAL(log, models_.size(), rates_.size()) << "# of models does not match number of rate distributions.\n";
-    CHECK_EQUAL(log, fitRates_.size(), models.size()) << "# of rates to fit does not match model size\n";
-
+    // BEAGLE
     beagleInstances_.resize(1);
 #ifdef _OPENMP
     beagleInstances_.resize(omp_get_max_threads());
 #endif
-    for(std::vector<int>& v : beagleInstances_) {
-        for(size_t i = 0; i < models_.size(); i++) {
-            v.push_back(star_optim::createBeagleInstance(*models[i], *rates[i]));
+    for(std::unordered_map<std::string, int>& m : beagleInstances_) {
+        for(const auto &p : models) {
+            m[p.first] = createBeagleInstance(*p.second.model, *p.second.rateDist);
         }
     }
+
+    for(const auto &p : models)
+        fitRates_[p.first] = true;
 }
 
 StarTreeOptimizer::~StarTreeOptimizer()
 {
-    for(const std::vector<int>& v : beagleInstances_)
-        for(const int i : v)
-            beagleFinalizeInstance(i);
+    for(const std::unordered_map<std::string, int>& v : beagleInstances_)
+        for(const auto p : v)
+            beagleFinalizeInstance(p.second);
 }
 
 /// \brief Optimize the model & branch lengths distribution for a collection of sequences
@@ -284,16 +282,17 @@ size_t StarTreeOptimizer::optimize()
         bool anyImproved = false;
         double logLike;
 
-        for(size_t idx = 0; idx < models_.size(); idx++) {
+        int idx = 0;
+        for(std::pair<std::string, PartitionModel> p : partitionModels_) {
             std::vector<Parameter> params;
-            bpp::SubstitutionModel* model = models_[idx].get();
-            bpp::DiscreteDistribution* r = rates_[idx].get();
+            bpp::SubstitutionModel* model = p.second.model;
+            bpp::DiscreteDistribution* r = p.second.rateDist;
             for(const std::string& s : model->getIndependentParameters().getParameterNames()) {
                 params.push_back(Parameter { static_cast<bpp::Parametrizable*>(model), model->getParameterNameWithoutNamespace(s) });
             }
             for(const std::string& s : r->getIndependentParameters().getParameterNames()) {
                 CHECK(log, s != "Gamma.beta") << "Gamma.beta should be aliased\n";
-                if(!fitRates_[idx]) 
+                if(!fitRates_[p.first])
                     continue;
                 params.push_back(Parameter { static_cast<bpp::Parametrizable*>(r), r->getParameterNameWithoutNamespace(s) });
             }
@@ -348,7 +347,7 @@ size_t StarTreeOptimizer::optimize()
                 params[i].setValue(x[i]);
             }
 
-            LOG_INFO(log) << "iteration " << iter << "." << idx << ": " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
+            LOG_INFO(log) << "iteration " << iter << "." << idx++ << ": " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
 
             anyImproved = anyImproved || std::abs(logLike - lastLogLike) > threshold();
             lastLogLike = logLike;
@@ -376,19 +375,20 @@ double StarTreeOptimizer::starLikelihood()
 {
     double result = 0.0;
 
-    for(const std::vector<int>& v : beagleInstances_) {
-        for(size_t i = 0; i < v.size(); i++) {
-            updateBeagleInstance(v[i], *models_[i], *rates_[i]);
+    for(const std::unordered_map<std::string, int>& partitionInstanceMap : beagleInstances_) {
+        for(const std::pair<std::string, int>& p : partitionInstanceMap) {
+            const PartitionModel& partModel = partitionModels_[p.first];
+            updateBeagleInstance(p.second, *partModel.model, *partModel.rateDist);
         }
     }
 
     double prior = 0.0;
-    for(size_t i = 0; i < models_.size(); i++) {
-        result += starLikelihood(i);
+    for(const auto& m : partitionModels_) {
+        result += starLikelihood(m.first);
         if(hky85KappaPrior_ > 0.0) {
-            assert(models_[i]->hasParameter("kappa") && "Model does not have kappa?");
+            assert(m.second.model->hasParameter("kappa") && "Model does not have kappa?");
             boost::math::lognormal_distribution<double> distn(1, hky85KappaPrior_);
-            prior += std::log(boost::math::pdf(distn, models_[i]->getParameterValue("kappa")));
+            prior += std::log(boost::math::pdf(distn, m.second.model->getParameterValue("kappa")));
         }
     }
 
@@ -396,19 +396,26 @@ double StarTreeOptimizer::starLikelihood()
 }
 
 /// \brief Calculate the likelihood of a collection of sequences under the star tree model
-double StarTreeOptimizer::starLikelihood(const size_t partition)
+double StarTreeOptimizer::starLikelihood(const std::string& partition)
 {
     double result = 0.0;
+    auto finder = [&partition](const Partition& p) { return p.name == partition; };
 #ifdef _OPENMP
     #pragma omp parallel for reduction(+:result)
 #endif
     for(size_t i = 0; i < sequences_.size(); i++) {
+        const AlignedPair& sequence = sequences_[i];
+
         int instance_idx = 0;
 #ifdef _OPENMP
         instance_idx = omp_get_thread_num();
 #endif
-        const int instance = beagleInstances_[instance_idx][partition];
-        result += pairLogLikelihood(instance, sequences_[i].substitutions[partition], sequences_[i].distance);
+        auto p = std::find_if(sequence.partitions.begin(), sequence.partitions.end(), finder);
+        if(p != sequence.partitions.end()) {
+            assert(beagleInstances_[instance_idx].count(partition) > 0 && "No beagle instance for partition.");
+            const int instance = beagleInstances_[instance_idx][partition];
+            result += pairLogLikelihood(instance, p->substitutions, sequence.distance);
+        }
     }
     return result;
 }
@@ -424,15 +431,17 @@ void StarTreeOptimizer::estimateBranchLengths()
 #ifdef _OPENMP
         idx = omp_get_thread_num();
 #endif
-        Sequence& s = sequences_[i];
-        std::vector<int> inst = beagleInstances_[idx];
+        AlignedPair& s = sequences_[i];
+        std::unordered_map<std::string, int> inst = beagleInstances_[idx];
 
         auto f = [&inst, &s](const double d) {
             assert(!std::isnan(d) && "NaN distance?");
             s.distance = d;
             double result = 0.0;
-            for(size_t i = 0; i < inst.size(); i++)
-                result += pairLogLikelihood(inst[i], s.substitutions[i], s.distance);
+            for(const Partition& p : s.partitions) {
+                assert(inst.count(p.name) > 0 && "Missing partition.");
+                result += pairLogLikelihood(inst[p.name], p.substitutions, s.distance);
+            }
             return -result;
         };
 
