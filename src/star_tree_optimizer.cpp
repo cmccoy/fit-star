@@ -135,6 +135,11 @@ void updateBeagleInstance(const int instance,
 {
     const int nStates = model.getNumberOfStates();
     std::vector<double> r = rates.getCategories();
+    if(model.hasParameter("rate")) {
+        const double rate = model.getParameterValue("rate");
+        std::transform(r.begin(), r.end(), r.begin(), [rate](double d) { return d * rate; });
+    }
+
     std::vector<double> p = rates.getProbabilities();
 
     //const double normExpectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
@@ -279,8 +284,9 @@ size_t StarTreeOptimizer::optimize()
             bpp::SubstitutionModel* model = p.second.model;
             bpp::DiscreteDistribution* r = p.second.rateDist;
             toFit.includeParameters(model->getIndependentParameters());
-            if(fitRates_[p.first])
+            if (fitRates_[p.first]) {
                 toFit.includeParameters(r->getIndependentParameters());
+            }
         }
 
         const size_t nParam = toFit.size();
