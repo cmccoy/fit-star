@@ -43,6 +43,7 @@ private:
         bool success = coded_in.ReadVarint32(&size);
         if(!success) {
             in_ = nullptr;
+            t_ = std::shared_ptr<T>(nullptr);
             return;
         }
 
@@ -53,7 +54,7 @@ private:
     }
 
     template<typename O>
-    bool equal(const DelimitedProtocolBufferIterator<O>& other) const 
+    bool equal(const DelimitedProtocolBufferIterator<O>& other) const
     {
         return t_.get() == other.t_.get();
     }
@@ -64,7 +65,7 @@ private:
     std::shared_ptr<google::protobuf::io::IstreamInputStream> raw_in_;
     std::shared_ptr<google::protobuf::io::GzipInputStream> zip_in_;
     google::protobuf::io::ZeroCopyInputStream* stream_;
-    const std::shared_ptr<T> t_;
+    std::shared_ptr<T> t_;
 };
 
 template<typename T>
