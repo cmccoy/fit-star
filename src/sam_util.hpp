@@ -4,7 +4,7 @@
 #include "faidx.h"
 #include "sam.h"
 
-#include "boost/iterator/iterator_facade.hpp"
+#include <boost/iterator/iterator_facade.hpp>
 
 struct SamRecord {
     SamRecord() : record(bam_init1()) {}

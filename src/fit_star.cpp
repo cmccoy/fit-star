@@ -19,6 +19,7 @@
 #include "fit_star_config.h"
 #include "star_tree_optimizer.hpp"
 #include "sequence.hpp"
+#include "protobuftools.hpp"
 
 // Beagle
 #include "libhmsbeagle/beagle.h"
@@ -43,24 +44,10 @@ cpplog::StdErrLogger logger;
 
 void loadSequencesFromFile(const std::string& file_path, std::vector<Sequence>& dest)
 {
-    std::fstream in(file_path, std::ios::in | std::ios::binary);
-    LOG_INFO(logger) << "Loading from " << file_path << '\n';
-    assert(in.good() && "Input stream is not good.");
-    google::protobuf::io::IstreamInputStream raw_in(&in);
-    google::protobuf::io::GzipInputStream zip_in(&raw_in);
-
-    while(true) {
-        google::protobuf::io::CodedInputStream coded_in(&zip_in);
-        uint32_t size = 0;
-        bool success = false;
-        success = coded_in.ReadVarint32(&size);
-        if(!success) break;
-        mutationio::MutationCount m;
-        std::string s;
-        coded_in.ReadString(&s, size);
-        success = m.ParseFromString(s);
-        assert(success && "Failed to parse");
+    std::fstream in(file_path, std::ios::binary | std::ios::in);
+    for(DelimitedProtocolBufferIterator<mutationio::MutationCount> it(in, true), end; it != end; it++) {
         Sequence sequence;
+        const mutationio::MutationCount& m = *it;
         if(m.has_name())
             sequence.name = m.name();
         sequence.substitutions.resize(m.partition_size());
@@ -261,6 +248,7 @@ int main(const int argc, const char** argv)
 
     std::vector<Sequence> sequences;
     for(const std::string& path : inputPaths) {
+        LOG_INFO(logger) << "Loading from " << path << '\n';
         loadSequencesFromFile(path, sequences);
     }
 
