@@ -200,7 +200,7 @@ int main(const int argc, const char** argv)
 
     std::string outputPath, modelName = "GTR", rateDistName = "constant";
     std::vector<std::string> inputPaths;
-    bool no_branch_lengths = false;
+    bool no_branch_lengths = false, share_rates = false, share_models = false;
     double hky85KappaPrior = -1;
     double gammaAlpha = -1, threshold = 0.1;
     size_t maxRounds = 30;
@@ -219,6 +219,8 @@ int main(const int argc, const char** argv)
     ("gamma-alpha,g", po::value(&gammaAlpha), "Fix gamma rate distribtion to value")
     ("threshold,t", po::value(&threshold), "Minimum improvement in an iteration to continue fitting")
     ("max-rounds,r", po::value(&maxRounds), "Maximum number of fitting rounds")
+    ("share-rates", po::bool_switch(&share_rates), "Share rate distribution")
+    ("share-models", po::bool_switch(&share_models), "Share substitution model")
     ("no-branch-lengths", po::bool_switch(&no_branch_lengths), "*do not* include fit branch lengths in output");
 
     po::variables_map vm;
@@ -259,8 +261,10 @@ int main(const int argc, const char** argv)
     for(const star_optim::AlignedPair& sequence : sequences) {
         for(const star_optim::Partition& p : sequence.partitions) {
             if(partitionModels.count(p.name) == 0) {
-                models.emplace_back(substitutionModelForName(modelName));
-                rates.emplace_back(rateDistributionForName(rateDistName));
+                if(!share_models || models.size() == 0)
+                    models.emplace_back(substitutionModelForName(modelName));
+                if(!share_rates || rates.size() == 0)
+                    rates.emplace_back(rateDistributionForName(rateDistName));
                 partitionModels[p.name] = star_optim::PartitionModel { models.back().get(), rates.back().get() };
             }
         }
