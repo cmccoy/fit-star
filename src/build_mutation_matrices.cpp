@@ -18,6 +18,7 @@
 #include "mutationio.pb.h"
 #include "fit_star_config.h"
 #include "sam_util.hpp"
+#include "protobuftools.hpp"
 
 namespace po = boost::program_options;
 namespace protoio = google::protobuf::io;
@@ -143,7 +144,6 @@ int main(int argc, char* argv[])
     protoio::ZeroCopyOutputStream* outptr = &rawOut;
     if(endsWith(outputPath, ".gz"))
         outptr = &zipOut;
-    protoio::CodedOutputStream codedOut(outptr);
 
     for(const std::string& bamPath : bamPaths) {
         SamFile in(bamPath);
@@ -156,8 +156,7 @@ int main(int argc, char* argv[])
             assert(*it != nullptr);
             const std::string qname = bam1_qname(*it);
             if(count.has_name() and count.name() != qname) {
-                codedOut.WriteVarint32(count.ByteSize());
-                count.SerializeWithCachedSizes(&codedOut);
+                writeDelimitedItem(*outptr, count);
                 count.Clear();
             }
             if(!count.has_name()) {
@@ -185,8 +184,7 @@ int main(int argc, char* argv[])
         }
         assert(count.has_name() && "Name not set");
         assert(count.partition_size() > 0 && "No partitions");
-        codedOut.WriteVarint32(count.ByteSize());
-        count.SerializeWithCachedSizes(&codedOut);
+        writeDelimitedItem(*outptr, count);
     }
 
     fai_destroy(fidx);

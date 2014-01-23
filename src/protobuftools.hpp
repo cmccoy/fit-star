@@ -114,4 +114,13 @@ void writeDelimitedToStream(std::ostream& out, const std::vector<T>& items, cons
     }
 }
 
+template<typename T>
+void writeDelimitedItem(google::protobuf::io::ZeroCopyOutputStream& out,
+                        const T& item)
+{
+        google::protobuf::io::CodedOutputStream coded_out(&out);
+        coded_out.WriteVarint32(item.ByteSize());
+        item.SerializeWithCachedSizes(&coded_out);
+}
+
 #endif
