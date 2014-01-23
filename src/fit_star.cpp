@@ -2,8 +2,8 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 #include "mutationio.pb.h"
 
@@ -42,23 +42,23 @@ namespace po = boost::program_options;
 
 cpplog::StdErrLogger logger;
 
-void loadAlignedPairsFromFile(const std::string& file_path, std::vector<AlignedPair>& dest)
+void loadAlignedPairsFromFile(const std::string& file_path, std::vector<star_optim::AlignedPair>& dest)
 {
     std::fstream in(file_path, std::ios::binary | std::ios::in);
     for(DelimitedProtocolBufferIterator<mutationio::MutationCount> it(in, true), end; it != end; it++) {
-        AlignedPair sequence;
+        star_optim::AlignedPair sequence;
         const mutationio::MutationCount& m = *it;
         if(m.has_name())
             sequence.name = m.name();
-        sequence.substitutions.resize(m.partition_size());
-        for(size_t p = 0; p < sequence.substitutions.size(); p++) {
-            sequence.substitutions[p].fill(0);
+        sequence.partitions.resize(m.partition_size());
+        for(size_t p = 0; p < sequence.partitions.size(); p++) {
             const mutationio::Partition& partition = m.partition(p);
+            sequence.partitions[p].name = partition.name();
+            sequence.partitions[p].substitutions.fill(0);
             assert(partition.substitution_size() == 16 && "Unexpected substitution count");
             for(size_t i = 0; i < 4; i++)
                 for(size_t j = 0; j < 4; j++)
-                    sequence.substitutions[p](i, j) = partition.substitution(4 * i + j);
-            sequence.partitionNames.push_back(partition.name());
+                    sequence.partitions[p].substitutions(i, j) = partition.substitution(4 * i + j);
         }
 
         // TODO: use mutation count
@@ -113,7 +113,7 @@ std::unique_ptr<bpp::DiscreteDistribution> rateDistributionForName(const std::st
 void writeResults(std::ostream& out,
                   const std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
                   const std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
-                  const std::vector<AlignedPair>& sequences,
+                  const std::vector<star_optim::AlignedPair>& sequences,
                   const double logLikelihood,
                   const bool include_branch_lengths = true)
 {
@@ -122,7 +122,7 @@ void writeResults(std::ostream& out,
 
     assert(models.size() == rates.size() && "Different number of rates / models");
 
-    auto f = [](double acc, const AlignedPair & s) { return acc + s.distance; };
+    auto f = [](double acc, const star_optim::AlignedPair & s) { return acc + s.distance; };
     const double meanBranchLength = std::accumulate(sequences.begin(), sequences.end(), 0.0, f) / sequences.size();
     root["meanBranchLength"] = meanBranchLength;
 
@@ -187,7 +187,7 @@ void writeResults(std::ostream& out,
     root["logLikelihood"] = logLikelihood;
     if(include_branch_lengths) {
         Json::Value blNode(Json::arrayValue);
-        for(const AlignedPair& sequence : sequences)
+        for(const star_optim::AlignedPair& sequence : sequences)
             blNode.append(sequence.distance);
         root["branchLengths"] = blNode;
     }
@@ -246,42 +246,39 @@ int main(const int argc, const char** argv)
         return 1;
     }
 
-    std::vector<AlignedPair> sequences;
+    std::vector<star_optim::AlignedPair> sequences;
     for(const std::string& path : inputPaths) {
         LOG_INFO(logger) << "Loading from " << path << '\n';
         loadAlignedPairsFromFile(path, sequences);
     }
 
+    LOG_INFO(logger) << sequences.size() << " sequences." << '\n';
+    std::vector<std::unique_ptr<bpp::SubstitutionModel>> models;
+    std::vector<std::unique_ptr<bpp::DiscreteDistribution>> rates;
 
-    std::map<std::string, int> partitionIndices;
-    for(const AlignedPair& sequence : sequences) {
-        for(const std::string& s : sequence.partitionNames) {
-            if(partitionIndices.count(s) == 0)
-                partitionIndices[s] = partitionIndices.size();
+    std::unordered_map<std::string, star_optim::PartitionModel> partitionModels;
+    for(const star_optim::AlignedPair& sequence : sequences) {
+        for(const star_optim::Partition& p : sequence.partitions) {
+            if(partitionModels.count(p.name) == 0) {
+                models.emplace_back(substitutionModelForName(modelName));
+                rates.emplace_back(rateDistributionForName(rateDistName));
+                partitionModels[p.name] = star_optim::PartitionModel { models.back().get(), rates.back().get() };
+            }
         }
     }
 
-    LOG_INFO(logger) << sequences.size() << " sequences." << '\n';
-    LOG_INFO(logger) << partitionIndices.size() << " partitions." << '\n';
-    const size_t nPartitions = partitionIndices.size();
-
-    std::vector<std::unique_ptr<bpp::SubstitutionModel>> models;
-    std::vector<std::unique_ptr<bpp::DiscreteDistribution>> rates;
-    for(size_t i = 0; i < nPartitions; i++) {
-        models.emplace_back(substitutionModelForName(modelName));
-        rates.emplace_back(rateDistributionForName(rateDistName));
-    }
-
-    star_optim::StarTreeOptimizer optimizer(models, rates, sequences);
+    star_optim::StarTreeOptimizer optimizer(partitionModels, sequences);
     if(vm.count("kappa-prior"))
         optimizer.hky85KappaPrior(hky85KappaPrior);
     if(vm.count("gamma-alpha")) {
         for(auto &r : rates)
             r->setParameterValue("alpha", gammaAlpha);
-        optimizer.fitRates() = std::vector<bool>(nPartitions, false);
+        for(auto &p : optimizer.fitRates())
+            p.second = false;
     } else if(rateDistName == "constant") {
-        optimizer.fitRates() = std::vector<bool>(nPartitions, true);
-        optimizer.fitRates()[0] = false;
+        int i = 0;
+        for(auto &p : optimizer.fitRates())
+            if(i++ == 0) p.second = false;
     }
     if(vm.count("threshold"))
         optimizer.threshold(threshold);

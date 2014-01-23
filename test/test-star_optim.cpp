@@ -18,6 +18,8 @@
 #include <Bpp/Seq/Container/VectorSiteContainer.h>
 #include <Bpp/Seq/Sequence.h>
 
+using namespace star_optim;
+
 bpp::DNA DNA;
 
 bpp::VectorSiteContainer createSites(const AlignedPair& sequence)
@@ -28,7 +30,7 @@ bpp::VectorSiteContainer createSites(const AlignedPair& sequence)
 
     for(size_t i = 0; i < bases.size(); i++) {
         for(size_t j = 0; j < bases.size(); j++) {
-            int count = static_cast<int>(sequence.substitutions[0](i, j));
+            int count = static_cast<int>(sequence.partitions[0].substitutions(i, j));
             for(int k = 0; k < count; k++) {
                 seqs[0] += bases[i];
                 seqs[1] += bases[j];
@@ -51,14 +53,11 @@ void checkAgainstBpp(std::vector<AlignedPair>& sequences,
     using namespace bpp;
     ASSERT_EQ(1, sequences.size());
 
-    std::vector<std::unique_ptr<bpp::SubstitutionModel>> models;
-    models.emplace_back(model->clone());
-    std::vector<std::unique_ptr<bpp::DiscreteDistribution>> rateDists;
-    rateDists.emplace_back(rates->clone());
+    std::unordered_map<std::string, PartitionModel> models ;
+    models[""] =  PartitionModel { model.get(), rates.get() };
 
-    star_optim::StarTreeOptimizer optimizer(models, rateDists, sequences);
-    const size_t partition = 0;
-    const double starLL = optimizer.starLikelihood(partition);
+    star_optim::StarTreeOptimizer optimizer(models, sequences);
+    const double starLL = optimizer.starLikelihood("");
 
     VectorSiteContainer sites = createSites(sequences[0]);
 
@@ -71,7 +70,7 @@ void checkAgainstBpp(std::vector<AlignedPair>& sequences,
     c2->setDistanceToFather(sequences[0].distance / 2);
     TreeTemplate<Node> tree(root);
 
-    RHomogeneousTreeLikelihood calc(tree, sites, model.get(), rateDists[0].get(), true, false);
+    RHomogeneousTreeLikelihood calc(tree, sites, model.get(), rates.get(), true, false);
     calc.initialize();
     calc.computeTreeLikelihood();
 
@@ -89,8 +88,8 @@ TEST(GTR, simple_jc) {
     std::vector<AlignedPair> v { AlignedPair() };
     AlignedPair& s = v.front();
 
-    s.substitutions.resize(1);
-    Eigen::Matrix4d& m = s.substitutions[0];
+    s.partitions.resize(1);
+    Eigen::Matrix4d& m = s.partitions[0].substitutions;
     m.fill(0.0);
     m.diagonal() = Eigen::Vector4d::Constant(1.0);
 
@@ -111,8 +110,8 @@ TEST(GTR, known_distance) {
     std::vector<AlignedPair> v { AlignedPair() };
 
     AlignedPair& s = v.front();
-    s.substitutions.resize(1);
-    s.substitutions[0] <<
+    s.partitions.resize(1);
+    s.partitions[0].substitutions <<
         94, 3, 2, 1,
         2, 95, 2, 1,
         2, 4, 89, 5,
@@ -141,8 +140,8 @@ TEST(GTR, gamma_variation) {
 
     AlignedPair& s = v.front();
 
-    s.substitutions.resize(1);
-    s.substitutions[0] <<
+    s.partitions.resize(1);
+    s.partitions[0].substitutions <<
         94, 3, 2, 1,
         2, 95, 2, 1,
         2, 4, 89, 5,
