@@ -58,7 +58,7 @@ void loadSequencesFromFile(const std::string& file_path, std::vector<Sequence>& 
             for(size_t i = 0; i < 4; i++)
                 for(size_t j = 0; j < 4; j++)
                     sequence.substitutions[p](i, j) = partition.substitution(4 * i + j);
-            ///sequence.partitionNames.push_back(partition.name());
+            sequence.partitionNames.push_back(partition.name());
         }
 
         // TODO: use mutation count
