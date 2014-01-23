@@ -26,4 +26,7 @@ style:
 					--indent-switches \
 	        `find src -regextype posix-extended -regex ".*\.[ch]pp$$"`
 
-.PHONY: all clean style test
+protoc:
+	protoc src/*.proto --cpp_out=.
+
+.PHONY: all clean style test protoc

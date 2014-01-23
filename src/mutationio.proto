@@ -1,6 +1,7 @@
 package mutationio;
 
 message Partition {
+  optional string name = 2;
   repeated uint32 substitution = 1;
 }
 
