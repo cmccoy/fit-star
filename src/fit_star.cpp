@@ -1,12 +1,3 @@
-#include <algorithm>
-#include <cassert>
-#include <fstream>
-#include <iostream>
-#include <memory>
-#include <unordered_set>
-#include <vector>
-#include "mutationio.pb.h"
-
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
@@ -37,6 +28,17 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+
+// STL
+#include <algorithm>
+#include <cassert>
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+#include "mutationio.pb.h"
+
 
 namespace po = boost::program_options;
 
@@ -111,8 +113,7 @@ std::unique_ptr<bpp::DiscreteDistribution> rateDistributionForName(const std::st
 }
 
 void writeResults(std::ostream& out,
-                  const std::vector<std::unique_ptr<bpp::SubstitutionModel>>& models,
-                  const std::vector<std::unique_ptr<bpp::DiscreteDistribution>>& rates,
+                  const std::unordered_map<std::string, star_optim::PartitionModel>& models,
                   const std::vector<star_optim::AlignedPair>& sequences,
                   const double logLikelihood,
                   const bool include_branch_lengths = true)
@@ -120,26 +121,24 @@ void writeResults(std::ostream& out,
     Json::Value root;
     Json::Value partitionsNode(Json::arrayValue);
 
-    assert(models.size() == rates.size() && "Different number of rates / models");
-
     auto f = [](double acc, const star_optim::AlignedPair & s) { return acc + s.distance; };
     const double meanBranchLength = std::accumulate(sequences.begin(), sequences.end(), 0.0, f) / sequences.size();
     root["meanBranchLength"] = meanBranchLength;
 
-    for(size_t i = 0; i < models.size(); i++) {
+    for(auto it = models.begin(), end = models.end(); it != end; it++) {
         Json::Value modelNode(Json::objectValue);
-        modelNode["partitionIndex"] = static_cast<int>(i);
+        modelNode["partition"] = it->first;
         Json::Value rateNode(Json::objectValue);
         Json::Value parameterNode(Json::objectValue);
         Json::Value piNode(Json::arrayValue);
-        const bpp::SubstitutionModel& model = *models[i];
-        const bpp::DiscreteDistribution& r = *rates[i];
+        const bpp::SubstitutionModel& model = *it->second.model;
+        const bpp::DiscreteDistribution& r = *it->second.rateDist;
         bpp::ParameterList p = model.getParameters();
         for(size_t i = 0; i < p.size(); i++) {
             parameterNode[p[i].getName()] = p[i].getValue();
         }
 
-        modelNode["name"] = model.getName();
+        modelNode["modelName"] = model.getName();
         modelNode["parameters"] = parameterNode;
 
         //rateNode["name"] = rates.getName();
@@ -292,7 +291,7 @@ int main(const int argc, const char** argv)
     LOG_INFO(logger) << "final log-like: " << finalLike << '\n';
 
     std::ofstream out(outputPath);
-    writeResults(out, models, rates, sequences, finalLike, !no_branch_lengths);
+    writeResults(out, partitionModels, sequences, finalLike, !no_branch_lengths);
 
     google::protobuf::ShutdownProtobufLibrary();
     return 0;

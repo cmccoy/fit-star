@@ -130,6 +130,7 @@ TEST(GTR, gamma_variation) {
     std::unique_ptr<bpp::DiscreteDistribution> rates(fac.createDiscreteDistribution("Gamma"));
     rates->setParameterValue("alpha", 1.2);
 
+    // Alpha and beta should be linked.
     EXPECT_NEAR(1.2, rates->getParameterValue("beta"), 1e-6);
 
     model->setParameterValue("a", 0.5);
