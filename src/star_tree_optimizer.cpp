@@ -278,9 +278,9 @@ size_t StarTreeOptimizer::optimize()
         for(std::pair<std::string, PartitionModel> p : partitionModels_) {
             bpp::SubstitutionModel* model = p.second.model;
             bpp::DiscreteDistribution* r = p.second.rateDist;
-            toFit.includeParameters(model->getParameters());
+            toFit.includeParameters(model->getIndependentParameters());
             if(fitRates_[p.first])
-                toFit.includeParameters(r->getParameters());
+                toFit.includeParameters(r->getIndependentParameters());
         }
 
         const size_t nParam = toFit.size();
@@ -445,6 +445,7 @@ void StarTreeOptimizer::estimateBranchLengths()
     }
 }
 
+/// Match model parameters in `pl` - should be namespaced
 bool StarTreeOptimizer::matchParameters(const bpp::ParameterList& pl)
 {
     std::unordered_set<bpp::Parametrizable*> toVisit;

@@ -101,6 +101,9 @@ std::unique_ptr<bpp::DiscreteDistribution> rateDistributionForName(const std::st
         p result(factory.createDiscreteDistribution("Gamma"));
         // Check
         std::vector<std::string> indNames = result->getIndependentParameters().getParameterNames();
+        if(std::count(indNames.begin(), indNames.end(), "Gamma.beta"))
+            result->aliasParameters("Gamma.alpha", "Gamma.beta");
+        indNames = result->getIndependentParameters().getParameterNames();
         CHECK_EQUAL(logger, std::count(indNames.begin(), indNames.end(), "Gamma.beta"), 0) << "Beta parameter should be aliased.\n";
         CHECK_EQUAL(logger, std::count(indNames.begin(), indNames.end(), "Gamma.alpha"), 1) << "Alpha parameter should be estimated.\n";
         return result;
@@ -204,7 +207,7 @@ int main(const int argc, const char** argv)
 
     std::string outputPath, modelName = "GTR", rateDistName = "constant";
     std::vector<std::string> inputPaths;
-    bool no_branch_lengths = false, share_rates = false, share_models = false;
+    bool no_branch_lengths = false, share_rates = false, share_models = false, add_rate = false;
     double hky85KappaPrior = -1;
     double gammaAlpha = -1, threshold = 0.1;
     size_t maxRounds = 30;
@@ -224,6 +227,7 @@ int main(const int argc, const char** argv)
     ("threshold,t", po::value(&threshold), "Minimum improvement in an iteration to continue fitting")
     ("max-rounds,r", po::value(&maxRounds), "Maximum number of fitting rounds")
     ("share-rates", po::bool_switch(&share_rates), "Share rate distribution")
+    ("add-rates", po::bool_switch(&add_rate), "Add relative rate to secondary mutation models")
     ("share-models", po::bool_switch(&share_models), "Share substitution model")
     ("no-branch-lengths", po::bool_switch(&no_branch_lengths), "*do not* include fit branch lengths in output");
 
@@ -295,6 +299,11 @@ int main(const int argc, const char** argv)
         optimizer.threshold(threshold);
     if(vm.count("max-rounds"))
         optimizer.maxRounds(maxRounds);
+
+    if(add_rate) {
+        for(size_t i = 1; i < models.size(); i++)
+            models[i]->addRateParameter();
+    }
 
     size_t rounds = optimizer.optimize();
     LOG_INFO(logger) << "finished in " << rounds + 1 << " fitting rounds.\n";
