@@ -131,47 +131,51 @@ void writeResults(std::ostream& out,
         Json::Value rateNode(Json::objectValue);
         Json::Value parameterNode(Json::objectValue);
         Json::Value piNode(Json::arrayValue);
-        const bpp::SubstitutionModel& model = *it->second.model;
-        const bpp::DiscreteDistribution& r = *it->second.rateDist;
-        bpp::ParameterList p = model.getParameters();
+        std::unique_ptr<bpp::SubstitutionModel> model(it->second.model->clone());
+        std::unique_ptr<bpp::DiscreteDistribution> r(it->second.rateDist->clone());
+
+
+        model->setNamespace(model->getName() + ".");
+        bpp::ParameterList p = model->getParameters();
         for(size_t i = 0; i < p.size(); i++) {
             parameterNode[p[i].getName()] = p[i].getValue();
         }
 
-        modelNode["modelName"] = model.getName();
+        modelNode["modelName"] = model->getName();
         modelNode["parameters"] = parameterNode;
 
-        //rateNode["name"] = rates.getName();
-        p = r.getParameters();
+        rateNode["distribution"] = r->getName();
+        r->setNamespace(r->getName() + ".");
+        p = r->getParameters();
         //rateNode["name"] = rates.getName();
         for(size_t i = 0; i < p.size(); i++) {
             rateNode[p[i].getName()] = p[i].getValue();
         }
         Json::Value rateRates(Json::arrayValue);
         Json::Value rateProbs(Json::arrayValue);
-        for(size_t i = 0; i < r.getNumberOfCategories(); i++) {
-            rateRates.append(r.getCategory(i));
-            rateProbs.append(r.getProbability(i));
+        for(size_t i = 0; i < r->getNumberOfCategories(); i++) {
+            rateRates.append(r->getCategory(i));
+            rateProbs.append(r->getProbability(i));
         }
         rateNode["rates"] = rateRates;
         rateNode["probabilities"] = rateProbs;
         modelNode["rate"] = rateNode;
 
-        for(size_t i = 0; i < model.getNumberOfStates(); i++) {
-            piNode.append(model.freq(i));
+        for(size_t i = 0; i < model->getNumberOfStates(); i++) {
+            piNode.append(model->freq(i));
         }
         modelNode["pi"] = piNode;
         // Matrices
         Json::Value qNode(Json::arrayValue);
-        //Json::Value sNode(Json::arrayValue);
+        Json::Value sNode(Json::arrayValue);
         Json::Value pNode(Json::arrayValue);
 
-        const auto& pt = model.getPij_t(meanBranchLength);
-        //const auto& sij = model.getExchangeabilityMatrix();
-        for(size_t i = 0; i < model.getNumberOfStates(); i++) {
-            for(size_t j = 0; j < model.getNumberOfStates(); j++) {
-                qNode.append(model.Qij(i, j));
-                //sNode.append(sij(i, j));
+        const auto& pt = model->getPij_t(meanBranchLength);
+        const auto& sij = model->getExchangeabilityMatrix();
+        for(size_t i = 0; i < model->getNumberOfStates(); i++) {
+            for(size_t j = 0; j < model->getNumberOfStates(); j++) {
+                qNode.append(model->Qij(i, j));
+                sNode.append(sij(i, j));
                 pNode.append(pt(static_cast<unsigned int>(i), static_cast<unsigned int>(j)));
             }
         }
