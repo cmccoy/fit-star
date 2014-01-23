@@ -42,12 +42,14 @@ inline int nt16ToIdx(const int b)
     }
 }
 
-mutationio::MutationCount mutationCountOfSequence(const bam1_t* b, const std::string& ref, const bool no_ambiguous, const bool by_codon = false)
+void mutationCountOfSequence(mutationio::MutationCount& count,
+                             const bam1_t* b,
+                             const std::string& ref,
+                             const bool no_ambiguous,
+                             const std::string partition_name="",
+                             const bool by_codon = false)
 {
     assert(b != nullptr && "null bam record");
-    mutationio::MutationCount count;
-    assert(bam1_qname(b) != nullptr);
-    count.set_name(bam1_qname(b));
     std::vector<std::vector<int>> partitions(by_codon ? 3 : 1);
     for(std::vector<int>& v : partitions)
         v.resize(16);
@@ -77,13 +79,13 @@ mutationio::MutationCount mutationCountOfSequence(const bam1_t* b, const std::st
             ri += clen;
     }
 
+    int p = 0;
     for(const std::vector<int>& v : partitions) {
         mutationio::Partition* partition = count.add_partition();
+        partition->set_name(partition_name + "p" + std::to_string(p++));
         for(const int i : v)
             partition->add_substitution(i);
     }
-
-    return count;
 }
 
 int usage(po::options_description& desc)
@@ -146,17 +148,29 @@ int main(int argc, char* argv[])
     for(const std::string& bamPath : bamPaths) {
         SamFile in(bamPath);
         SamRecord record;
+        mutationio::MutationCount count;
 
         std::vector<std::string> targetBases(in.fp->header->n_targets);
         std::vector<int> targetLen(in.fp->header->n_targets);
         for(SamIterator it(in.fp, record.record), end; it != end; it++) {
             assert(*it != nullptr);
+            const std::string qname = bam1_qname(*it);
+            if(count.has_name() and count.name() != qname) {
+                codedOut.WriteVarint32(count.ByteSize());
+                count.SerializeWithCachedSizes(&codedOut);
+                count.Clear();
+            }
+            if(!count.has_name()) {
+                count.set_name(qname);
+                count.set_distance(0.1);
+            }
+
             if(maxRecords > 0 && processed > maxRecords)
                 break;
             processed++;
-            const char* target_name = in.fp->header->target_name[(*it)->core.tid];
+            std::string target_name = in.fp->header->target_name[(*it)->core.tid];
             if(targetBases[(*it)->core.tid].empty()) {
-                char* ref = fai_fetch(fidx, target_name, &targetLen[(*it)->core.tid]);
+                char* ref = fai_fetch(fidx, target_name.c_str(), &targetLen[(*it)->core.tid]);
                 assert(ref != nullptr && "Missing reference");
                 targetBases[(*it)->core.tid] = ref;
                 free(ref);
@@ -164,14 +178,15 @@ int main(int argc, char* argv[])
 
             const std::string& ref = targetBases[(*it)->core.tid];
 
-            const char* qname = bam1_qname(*it);
-            assert(qname != nullptr && "Null query name");
+            // Assign a group based on germline prefix
+            target_name.resize(4);
 
-            mutationio::MutationCount count = mutationCountOfSequence(*it, ref, no_ambiguous, by_codon);
-
-            codedOut.WriteVarint32(count.ByteSize());
-            count.SerializeWithCachedSizes(&codedOut);
+            mutationCountOfSequence(count, *it, ref, no_ambiguous, target_name, by_codon);
         }
+        assert(count.has_name() && "Name not set");
+        assert(count.partition_size() > 0 && "No partitions");
+        codedOut.WriteVarint32(count.ByteSize());
+        count.SerializeWithCachedSizes(&codedOut);
     }
 
     fai_destroy(fidx);
