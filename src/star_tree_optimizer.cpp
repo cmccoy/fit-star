@@ -30,6 +30,9 @@ cpplog::StdErrLogger log;
 
 void beagleCheck(const int value, const std::string& details = "")
 {
+    if(value >= 0)
+        return;
+
     std::string s;
     switch(value) {
         case BEAGLE_ERROR_GENERAL: s = "BEAGLE_ERROR_GENERAL"; break;
@@ -454,7 +457,6 @@ bool StarTreeOptimizer::matchParameters(const bpp::ParameterList& pl)
         bool updated = p->matchParametersValues(pl);
         result = result || updated;
     }
-
 
     return result;
 }
