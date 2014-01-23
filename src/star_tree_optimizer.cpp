@@ -7,6 +7,7 @@
 
 #include "libhmsbeagle/beagle.h"
 
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/math/distributions/lognormal.hpp>
 #include <boost/math/tools/minima.hpp>
 
@@ -16,6 +17,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <unordered_set>
 
 #include <nlopt.hpp>
 
@@ -199,25 +201,8 @@ int createBeagleInstance(const bpp::SubstitutionModel& model,
     return instance;
 }
 
-struct Parameter
-{
-    bpp::Parametrizable* source;
-    std::string parameterName;
-
-    void setValue(const double value)
-    {
-        source->setParameterValue(parameterName, value);
-    }
-
-    double getValue() const
-    {
-        return source->getParameterValue(parameterName);
-    }
-};
-
-
 struct NlOptParams {
-    std::vector<Parameter>* paramList;
+    bpp::ParameterList* paramList;
     StarTreeOptimizer* optimizer;
 };
 
@@ -226,10 +211,14 @@ double nlLogLike(const std::vector<double>& x, std::vector<double>& grad, void* 
     assert(grad.empty() && "Expected no derivative");
 
     NlOptParams* params = reinterpret_cast<NlOptParams*>(data);
+    bpp::ParameterList& pl = *params->paramList;
 
+    assert(pl.size() == x.size());
     for(size_t i = 0; i < x.size(); i++) {
-        params->paramList->operator[](i).setValue(x[i]);
+        pl[i].setValue(x[i]);
     }
+
+    params->optimizer->matchParameters(pl);
 
     return params->optimizer->starLikelihood();
 }
@@ -282,76 +271,76 @@ size_t StarTreeOptimizer::optimize()
         bool anyImproved = false;
         double logLike;
 
-        int idx = 0;
+        bpp::ParameterList toFit;
         for(std::pair<std::string, PartitionModel> p : partitionModels_) {
-            std::vector<Parameter> params;
             bpp::SubstitutionModel* model = p.second.model;
             bpp::DiscreteDistribution* r = p.second.rateDist;
-            for(const std::string& s : model->getIndependentParameters().getParameterNames()) {
-                params.push_back(Parameter { static_cast<bpp::Parametrizable*>(model), model->getParameterNameWithoutNamespace(s) });
-            }
-            for(const std::string& s : r->getIndependentParameters().getParameterNames()) {
-                CHECK(log, s != "Gamma.beta") << "Gamma.beta should be aliased\n";
-                if(!fitRates_[p.first])
-                    continue;
-                params.push_back(Parameter { static_cast<bpp::Parametrizable*>(r), r->getParameterNameWithoutNamespace(s) });
-            }
-            const size_t nParam = params.size();
-
-            // First, substitution model
-            nlopt::opt opt(nlopt::LN_BOBYQA, nParam);
-            NlOptParams optParams { &params, this };
-            opt.set_max_objective(nlLogLike, &optParams);
-
-            std::vector<double> lowerBounds(nParam, -std::numeric_limits<double>::max());
-            std::vector<double> upperBounds(nParam, std::numeric_limits<double>::max());
-            for(size_t i = 0; i < params.size(); i++) {
-                bpp::Parameter bp = params[i].source->getParameter(params[i].parameterName);
-                // Rate-related hacks
-                if(params[i].parameterName == "value") {
-                    lowerBounds[i] = 1e-6;
-                    upperBounds[i] = 20;
-                } else if (params[i].parameterName == "alpha") {
-                    // The Bio++ implementation fails at small alpha
-                    lowerBounds[i] = 0.1;
-                    upperBounds[i] = 20;
-                } else if(!bp.hasConstraint())
-                    continue;
-                else {
-                    // TODO: changes in bpp 2.1
-                    bpp::IntervalConstraint* constraint = dynamic_cast<bpp::IntervalConstraint*>(bp.getConstraint());
-                    assert(constraint != nullptr);
-                    lowerBounds[i] = constraint->getLowerBound() + 1e-7;
-                    upperBounds[i] = std::min(constraint->getUpperBound(), 20.0);
-                }
-            }
-            opt.set_lower_bounds(lowerBounds);
-            opt.set_upper_bounds(upperBounds);
-            opt.set_ftol_abs(threshold());
-            opt.set_xtol_rel(0.001);
-            opt.set_maxeval(maxIterations());
-
-            std::vector<double> x(nParam);
-            for(size_t i = 0; i < nParam; i++) {
-                x[i] = params[i].getValue();
-            }
-
-            try {
-                const int nlOptResult = opt.optimize(x, logLike);
-                LOG_INFO(log) << "Optimization finished with " << nlOptResult << '\n';
-            } catch(std::exception& e) {
-                LOG_WARN(log) << "Optimization failed:  " << e.what() << '\n';
-            }
-
-            for(size_t i = 0; i < nParam; i++) {
-                params[i].setValue(x[i]);
-            }
-
-            LOG_INFO(log) << "iteration " << iter << "." << idx++ << ": " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
-
-            anyImproved = anyImproved || std::abs(logLike - lastLogLike) > threshold();
-            lastLogLike = logLike;
+            toFit.includeParameters(model->getParameters());
+            if(fitRates_[p.first])
+                toFit.includeParameters(r->getParameters());
         }
+
+        const size_t nParam = toFit.size();
+        LOG_INFO(log) << "Fitting " << nParam << " parameters";
+        //for(size_t i = 0; i < toFit.size(); i++) {
+            //LOG_INFO(log) << "  - " << toFit[i].getName() << '\t' << toFit[i].getValue();
+        //}
+
+        // Optimize
+        nlopt::opt opt(nlopt::LN_BOBYQA, nParam);
+        NlOptParams optParams { &toFit, this };
+        opt.set_max_objective(nlLogLike, &optParams);
+
+        std::vector<double> lowerBounds(nParam, -std::numeric_limits<double>::max());
+        std::vector<double> upperBounds(nParam, std::numeric_limits<double>::max());
+        for(size_t i = 0; i < toFit.size(); i++) {
+            bpp::Parameter& bp = toFit[i];
+            // Rate-related hacks
+            if(boost::algorithm::ends_with(bp.getName(), "Constant.value")) {
+                lowerBounds[i] = 1e-6;
+                upperBounds[i] = 20;
+            } else if (boost::algorithm::ends_with(bp.getName(), "Gamma.alpha")) {
+                // The Bio++ implementation fails at small alpha
+                lowerBounds[i] = 0.1;
+                upperBounds[i] = 20;
+            } else if(!bp.hasConstraint())
+                continue;
+            else {
+                bpp::IntervalConstraint* constraint = dynamic_cast<bpp::IntervalConstraint*>(bp.getConstraint());
+                assert(constraint != nullptr);
+                lowerBounds[i] = constraint->getLowerBound() + 1e-7;
+                upperBounds[i] = std::min(constraint->getUpperBound(), 20.0);
+            }
+        }
+        opt.set_lower_bounds(lowerBounds);
+        opt.set_upper_bounds(upperBounds);
+        opt.set_ftol_abs(threshold());
+        opt.set_xtol_rel(0.001);
+        opt.set_maxeval(maxIterations());
+
+        std::vector<double> x(nParam);
+        for(size_t i = 0; i < nParam; i++) {
+            x[i] = toFit[i].getValue();
+        }
+
+        try {
+            const int nlOptResult = opt.optimize(x, logLike);
+            LOG_INFO(log) << "Optimization finished with " << nlOptResult << '\n';
+        } catch(std::exception& e) {
+            LOG_WARN(log) << "Optimization failed:  " << e.what() << '\n';
+        }
+
+        LOG_TRACE(log) << "after fitting: ";
+        for(size_t i = 0; i < nParam; i++) {
+            LOG_TRACE(log) << "  - " << toFit[i].getName() << '\t' << toFit[i].getValue() << '\t' << x[i];
+            toFit[i].setValue(x[i]);
+        }
+        matchParameters(toFit);
+
+        LOG_INFO(log) << "iteration " << iter << ": " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
+
+        anyImproved = anyImproved || std::abs(logLike - lastLogLike) > threshold();
+        lastLogLike = logLike;
 
 
         // then, branch lengths
@@ -453,6 +442,22 @@ void StarTreeOptimizer::estimateBranchLengths()
     }
 }
 
+bool StarTreeOptimizer::matchParameters(const bpp::ParameterList& pl)
+{
+    std::unordered_set<bpp::Parametrizable*> toVisit;
+    for(auto& pair : partitionModels_) {
+        toVisit.insert(pair.second.model);
+        toVisit.insert(pair.second.rateDist);
+    }
+    bool result = false;
+    for(bpp::Parametrizable* p : toVisit) {
+        bool updated = p->matchParametersValues(pl);
+        result = result || updated;
+    }
+
+
+    return result;
+}
 
 
 } // namespace

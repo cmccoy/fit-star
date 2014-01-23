@@ -11,6 +11,7 @@ namespace bpp
 {
 class SubstitutionModel;
 class DiscreteDistribution;
+class ParameterList;
 }
 
 namespace star_optim
@@ -71,6 +72,8 @@ public:
     double starLikelihood();
     /// \brief estimate branch lengths
     void estimateBranchLengths();
+
+    bool matchParameters(const bpp::ParameterList& pl);
 private:
     std::vector<std::unordered_map<std::string, int>> beagleInstances_;
     std::unordered_map<std::string, PartitionModel> partitionModels_;

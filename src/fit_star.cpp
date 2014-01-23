@@ -261,10 +261,16 @@ int main(const int argc, const char** argv)
     for(const star_optim::AlignedPair& sequence : sequences) {
         for(const star_optim::Partition& p : sequence.partitions) {
             if(partitionModels.count(p.name) == 0) {
-                if(!share_models || models.size() == 0)
+                if(!share_models || models.size() == 0) {
                     models.emplace_back(substitutionModelForName(modelName));
-                if(!share_rates || rates.size() == 0)
+                    models.back()->setNamespace(p.name + '.' +  models.back()->getNamespace());
+                    LOG_INFO(logger) << models.back()->getNamespace();
+                }
+                if(!share_rates || rates.size() == 0) {
                     rates.emplace_back(rateDistributionForName(rateDistName));
+                    rates.back()->setNamespace(p.name + '.' + rates.back()->getNamespace());
+                    LOG_INFO(logger) << rates.back()->getNamespace();
+                }
                 partitionModels[p.name] = star_optim::PartitionModel { models.back().get(), rates.back().get() };
             }
         }
