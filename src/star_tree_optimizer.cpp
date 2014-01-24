@@ -28,6 +28,18 @@ namespace star_optim
 
 cpplog::StdErrLogger log;
 
+std::string nlOptSuccessCodeToString(const int r) {
+    switch(r) {
+        case nlopt::SUCCESS: return "success";
+        case nlopt::STOPVAL_REACHED: return "stopping value reached";
+        case nlopt::FTOL_REACHED: return "tolerance in f reached";
+        case nlopt::XTOL_REACHED: return "tolerance in x reached";
+        case nlopt::MAXEVAL_REACHED: return "maximum evaluations reached";
+        case nlopt::MAXTIME_REACHED: return "maximum time reached";
+        default: return "unknown";
+    }
+}
+
 void beagleCheck(const int value, const std::string& details = "")
 {
     if(value >= 0)
@@ -334,7 +346,7 @@ size_t StarTreeOptimizer::optimize()
 
         try {
             const int nlOptResult = opt.optimize(x, logLike);
-            LOG_INFO(log) << "Optimization finished with " << nlOptResult << '\n';
+            LOG_INFO(log) << "Optimization finished with '" << nlOptSuccessCodeToString(nlOptResult) << "'\n";
         } catch(std::exception& e) {
             LOG_WARN(log) << "Optimization failed:  " << e.what() << '\n';
         }
