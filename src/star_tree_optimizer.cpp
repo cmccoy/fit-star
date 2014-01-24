@@ -133,7 +133,7 @@ void updateBeagleInstance(const int instance,
                           const bpp::SubstitutionModel& model,
                           const bpp::DiscreteDistribution& rates)
 {
-    const int nStates = model.getNumberOfStates();
+    const size_t nStates = static_cast<size_t>(model.getNumberOfStates());
     std::vector<double> r = rates.getCategories();
     if(model.hasParameter("rate")) {
         const double rate = model.getParameterValue("rate");
@@ -239,7 +239,7 @@ StarTreeOptimizer::StarTreeOptimizer(const std::unordered_map<std::string, Parti
         sequences_(sequences),
         threshold_(0.1),
         maxRounds_(30),
-        maxIterations_(300),
+        maxIterations_(1000),
         bitTolerance_(50),
         minSubsParam_(1e-5),
         maxSubsParam_(20.0),

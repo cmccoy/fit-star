@@ -210,7 +210,7 @@ int main(const int argc, const char** argv)
     bool no_branch_lengths = false, share_rates = false, share_models = false, add_rate = false;
     double hky85KappaPrior = -1;
     double gammaAlpha = -1, threshold = 0.1;
-    size_t maxRounds = 30;
+    size_t maxRounds = 30, maxIterations = 1000;
 
     // command-line parsing
     po::options_description desc("Allowed options");
@@ -226,6 +226,7 @@ int main(const int argc, const char** argv)
     ("gamma-alpha,g", po::value(&gammaAlpha), "Fix gamma rate distribtion to value")
     ("threshold,t", po::value(&threshold), "Minimum improvement in an iteration to continue fitting")
     ("max-rounds,r", po::value(&maxRounds), "Maximum number of fitting rounds")
+    ("max-iterations", po::value(&maxIterations), "Maximum number of iterations per round")
     ("share-rates", po::bool_switch(&share_rates), "Share rate distribution")
     ("add-rates", po::bool_switch(&add_rate), "Add relative rate to secondary mutation models")
     ("share-models", po::bool_switch(&share_models), "Share substitution model")
@@ -299,6 +300,7 @@ int main(const int argc, const char** argv)
         optimizer.threshold(threshold);
     if(vm.count("max-rounds"))
         optimizer.maxRounds(maxRounds);
+    optimizer.maxIterations(maxIterations);
 
     if(add_rate) {
         for(size_t i = 1; i < models.size(); i++)
