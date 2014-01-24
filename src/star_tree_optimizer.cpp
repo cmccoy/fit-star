@@ -311,6 +311,7 @@ size_t StarTreeOptimizer::optimize()
         nlopt::opt opt(nlopt::LN_BOBYQA, nParam);
         NlOptParams optParams { &toFit, this };
         opt.set_max_objective(nlLogLike, &optParams);
+        opt.set_initial_step(std::vector<double>(nParam, 0.01));
 
         std::vector<double> lowerBounds(nParam, -std::numeric_limits<double>::max());
         std::vector<double> upperBounds(nParam, std::numeric_limits<double>::max());
@@ -349,6 +350,10 @@ size_t StarTreeOptimizer::optimize()
             LOG_INFO(log) << "Optimization finished with '" << nlOptSuccessCodeToString(nlOptResult) << "'\n";
         } catch(std::exception& e) {
             LOG_WARN(log) << "Optimization failed:  " << e.what() << '\n';
+            for(size_t i = 0 ; i < toFit.size(); i++) {
+                LOG_INFO(log) << " - " << toFit[i].getName() << '\t' << x[i] << "\t(" << lowerBounds[i] << ", " << upperBounds[i] << ")";
+            }
+            throw e;
         }
 
         LOG_TRACE(log) << "after fitting: ";
