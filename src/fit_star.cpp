@@ -131,6 +131,27 @@ void writeResults(std::ostream& out,
     const double meanBranchLength = std::accumulate(sequences.begin(), sequences.end(), 0.0, f) / sequences.size();
     root["meanBranchLength"] = meanBranchLength;
 
+    Json::Value paramNode(Json::objectValue);
+    bpp::ParameterList pl;
+    for(auto it = models.begin(), end = models.end(); it != end; it++) {
+        pl.includeParameters(it->second.model->getIndependentParameters());
+        pl.includeParameters(it->second.rateDist->getIndependentParameters());
+    }
+    for(size_t i = 0; i < pl.size(); i++) {
+        paramNode[pl[i].getName()] = pl[i].getValue();
+    }
+    root["independentParameters"] = paramNode;
+    root["degreesOfFreedom"] = static_cast<int>(pl.size() + sequences.size());
+    paramNode = Json::Value(Json::objectValue);
+    for(auto it = models.begin(), end = models.end(); it != end; it++) {
+        pl.includeParameters(it->second.model->getParameters());
+        pl.includeParameters(it->second.rateDist->getParameters());
+    }
+    for(size_t i = 0; i < pl.size(); i++) {
+        paramNode[pl[i].getName()] = pl[i].getValue();
+    }
+    root["parameters"] = paramNode;
+
     for(auto it = models.begin(), end = models.end(); it != end; it++) {
         Json::Value modelNode(Json::objectValue);
         modelNode["partition"] = it->first;
