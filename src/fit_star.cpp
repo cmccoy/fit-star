@@ -3,6 +3,9 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/io/gzip_stream.h>
 
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/iostreams/filtering_streambuf.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 #include <boost/program_options.hpp>
 #include <json/json.h>
 #include <json/value.h>
@@ -313,8 +316,14 @@ int main(const int argc, const char** argv)
     const double finalLike = optimizer.starLikelihood();
     LOG_INFO(logger) << "final log-like: " << finalLike << '\n';
 
-    std::ofstream out(outputPath);
-    writeResults(out, partitionModels, sequences, finalLike, !no_branch_lengths);
+    std::ofstream file(outputPath, std::ios_base::out | std::ios_base::binary);
+    boost::iostreams::filtering_streambuf<boost::iostreams::output> outBuf;
+
+    if(boost::algorithm::ends_with(outputPath, ".gz"))
+        outBuf.push(boost::iostreams::gzip_compressor());
+    outBuf.push(file);
+    std::ostream outStream(&outBuf);
+    writeResults(outStream, partitionModels, sequences, finalLike, !no_branch_lengths);
 
     google::protobuf::ShutdownProtobufLibrary();
     return 0;

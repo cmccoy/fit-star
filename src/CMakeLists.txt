@@ -32,6 +32,6 @@ target_link_libraries(build-mutation-matrices boost-programoptions)
 
 # model fitting
 add_executable(fit-star fit_star.cpp)
-target_link_libraries(fit-star boost-programoptions libstaropt)
+target_link_libraries(fit-star boost-programoptions boost-iostream libstaropt)
 target_link_libraries(fit-star json)
 target_link_libraries(fit-star nlopt)
