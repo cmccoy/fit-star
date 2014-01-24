@@ -106,6 +106,7 @@ int main(int argc, char* argv[])
 
     bool no_ambiguous = false;
     bool by_codon = false;
+    bool no_group_by_qname = false;
     size_t maxRecords = 0;
 
     po::options_description desc("Allowed options");
@@ -117,6 +118,7 @@ int main(int argc, char* argv[])
     ("max-records,n", po::value<size_t>(&maxRecords), "Maximum number of records to parse")
     ("input-fasta,f", po::value<std::string>(&fastaPath)->required(), "Path to (indexed) FASTA file")
     ("input-bam,i", po::value(&bamPaths)->composing()->required(), "Path to BAM(s)")
+    ("no-group", po::bool_switch(&no_group_by_qname), "Do *not* group records by name")
     ("output-file,o", po::value<std::string>(&outputPath)->required(), "Path to output file");
 
     po::variables_map vm;
@@ -153,20 +155,20 @@ int main(int argc, char* argv[])
         std::vector<std::string> targetBases(in.fp->header->n_targets);
         std::vector<int> targetLen(in.fp->header->n_targets);
         for(SamIterator it(in.fp, record.record), end; it != end; it++) {
-            assert(*it != nullptr);
+            if(maxRecords > 0 && processed++ > maxRecords)
+                break;
+
             const std::string qname = bam1_qname(*it);
-            if(count.has_name() and count.name() != qname) {
-                writeDelimitedItem(*outptr, count);
+            if((count.has_name() && count.name() != qname) || no_group_by_qname) {
+                if(count.has_name() && count.partition_size())
+                    writeDelimitedItem(*outptr, count);
                 count.Clear();
             }
+
             if(!count.has_name()) {
                 count.set_name(qname);
                 count.set_distance(0.1);
             }
-
-            if(maxRecords > 0 && processed > maxRecords)
-                break;
-            processed++;
             std::string target_name = in.fp->header->target_name[(*it)->core.tid];
             if(targetBases[(*it)->core.tid].empty()) {
                 char* ref = fai_fetch(fidx, target_name.c_str(), &targetLen[(*it)->core.tid]);
