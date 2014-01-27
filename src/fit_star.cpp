@@ -238,7 +238,7 @@ int main(const int argc, const char** argv)
 
     std::string outputPath, modelName = "GTR", rateDistName = "constant";
     std::vector<std::string> inputPaths;
-    bool no_branch_lengths = false, share_rates = false, share_models = false, add_rate = false, invariant = false;
+    bool noBranchLengths = false, shareRates = false, shareModels = false, addRate = false, invariant = false;
     double hky85KappaPrior = -1;
     double gammaAlpha = -1, threshold = 0.1;
     size_t maxRounds = 30, maxIterations = 1000;
@@ -259,10 +259,10 @@ int main(const int argc, const char** argv)
     ("threshold,t", po::value(&threshold), "Minimum improvement in an iteration to continue fitting")
     ("max-rounds,r", po::value(&maxRounds), "Maximum number of fitting rounds")
     ("max-iterations", po::value(&maxIterations), "Maximum number of iterations per round")
-    ("share-rates", po::bool_switch(&share_rates), "Share rate distribution")
-    ("add-rates", po::bool_switch(&add_rate), "Add relative rate to secondary mutation models")
-    ("share-models", po::bool_switch(&share_models), "Share substitution model")
-    ("no-branch-lengths", po::bool_switch(&no_branch_lengths), "*do not* include fit branch lengths in output");
+    ("share-rates", po::bool_switch(&shareRates), "Share rate distribution")
+    ("add-rates", po::bool_switch(&addRate), "Add relative rate to secondary mutation models")
+    ("share-models", po::bool_switch(&shareModels), "Share substitution model")
+    ("no-branch-lengths", po::bool_switch(&noBranchLengths), "*do not* include fit branch lengths in output");
 
     po::variables_map vm;
     po::store(po::command_line_parser(argc, argv).
@@ -302,11 +302,11 @@ int main(const int argc, const char** argv)
     for(const star_optim::AlignedPair& sequence : sequences) {
         for(const star_optim::Partition& p : sequence.partitions) {
             if(partitionModels.count(p.name) == 0) {
-                if(!share_models || models.size() == 0) {
+                if(!shareModels || models.size() == 0) {
                     models.emplace_back(substitutionModelForName(modelName));
                     models.back()->setNamespace(p.name + '.' +  models.back()->getNamespace());
                 }
-                if(!share_rates || rates.size() == 0) {
+                if(!shareRates || rates.size() == 0) {
                     rates.emplace_back(rateDistributionForName(rateDistName, invariant));
                     rates.back()->setNamespace(p.name + '.' + rates.back()->getNamespace());
                 }
@@ -334,7 +334,7 @@ int main(const int argc, const char** argv)
         optimizer.maxRounds(maxRounds);
     optimizer.maxIterations(maxIterations);
 
-    if(add_rate) {
+    if(addRate) {
         for(size_t i = 1; i < models.size(); i++)
             models[i]->addRateParameter();
     }
@@ -352,7 +352,7 @@ int main(const int argc, const char** argv)
         outBuf.push(boost::iostreams::gzip_compressor());
     outBuf.push(file);
     std::ostream outStream(&outBuf);
-    writeResults(outStream, partitionModels, sequences, finalLike, !no_branch_lengths);
+    writeResults(outStream, partitionModels, sequences, finalLike, !noBranchLengths);
 
     google::protobuf::ShutdownProtobufLibrary();
     return 0;
