@@ -19,6 +19,7 @@
 #include "libhmsbeagle/beagle.h"
 
 // Bio++
+#include <Bpp/Numeric/Prob/InvariantMixedDiscreteDistribution.h>
 #include <Bpp/Phyl/Model/RateDistributionFactory.h>
 #include <Bpp/Phyl/Model/Nucleotide/GTR.h>
 #include <Bpp/Phyl/Model/Nucleotide/HKY85.h>
@@ -92,16 +93,17 @@ std::unique_ptr<bpp::SubstitutionModel> substitutionModelForName(const std::stri
     throw std::runtime_error("Unknown model: " + name);
 }
 
-std::unique_ptr<bpp::DiscreteDistribution> rateDistributionForName(const std::string& name)
+std::unique_ptr<bpp::DiscreteDistribution> rateDistributionForName(const std::string& name, bool includeInvariant = false)
 {
     using p = std::unique_ptr<bpp::DiscreteDistribution>;
     std::string lower = name;
     std::transform(name.begin(), name.end(), lower.begin(), ::tolower);
 
+    p result;
     if(lower == "gamma") {
         LOG_INFO(logger) << "Gamma rate distribution with 4 categories.\n";
         bpp::RateDistributionFactory factory(4);
-        p result(factory.createDiscreteDistribution("Gamma"));
+        result.reset(factory.createDiscreteDistribution("Gamma"));
         // Check
         std::vector<std::string> indNames = result->getIndependentParameters().getParameterNames();
         if(std::count(indNames.begin(), indNames.end(), "Gamma.beta"))
@@ -109,13 +111,18 @@ std::unique_ptr<bpp::DiscreteDistribution> rateDistributionForName(const std::st
         indNames = result->getIndependentParameters().getParameterNames();
         CHECK_EQUAL(logger, std::count(indNames.begin(), indNames.end(), "Gamma.beta"), 0) << "Beta parameter should be aliased.\n";
         CHECK_EQUAL(logger, std::count(indNames.begin(), indNames.end(), "Gamma.alpha"), 1) << "Alpha parameter should be estimated.\n";
-        return result;
     } else if(lower == "constant") {
         LOG_INFO(logger) << "Constant rate distribution.\n";
         bpp::RateDistributionFactory factory(1);
-        return p(factory.createDiscreteDistribution("Constant"));
+        result.reset(factory.createDiscreteDistribution("Constant"));
+    } else {
+        throw std::runtime_error("Unknown model: " + name);
     }
-    throw std::runtime_error("Unknown model: " + name);
+
+    if(includeInvariant) {
+        result.reset(new bpp::InvariantMixedDiscreteDistribution(result.release(), 0.5));
+    }
+    return result;
 }
 
 void writeResults(std::ostream& out,
@@ -231,7 +238,7 @@ int main(const int argc, const char** argv)
 
     std::string outputPath, modelName = "GTR", rateDistName = "constant";
     std::vector<std::string> inputPaths;
-    bool no_branch_lengths = false, share_rates = false, share_models = false, add_rate = false;
+    bool no_branch_lengths = false, share_rates = false, share_models = false, add_rate = false, invariant = false;
     double hky85KappaPrior = -1;
     double gammaAlpha = -1, threshold = 0.1;
     size_t maxRounds = 30, maxIterations = 1000;
@@ -246,6 +253,7 @@ int main(const int argc, const char** argv)
     ("output-file,o", po::value(&outputPath)->required(), "output file [required]")
     ("model,m", po::value(&modelName), "model [default: GTR]")
     ("rate-dist,r", po::value(&rateDistName), "rate distribution [default: constant]")
+    ("invariant", po::bool_switch(&invariant), "Include an invariant category")
     ("kappa-prior,k", po::value(&hky85KappaPrior), "Prior on HKY85 kappa [default: None]")
     ("gamma-alpha,g", po::value(&gammaAlpha), "Fix gamma rate distribtion to value")
     ("threshold,t", po::value(&threshold), "Minimum improvement in an iteration to continue fitting")
@@ -299,7 +307,7 @@ int main(const int argc, const char** argv)
                     models.back()->setNamespace(p.name + '.' +  models.back()->getNamespace());
                 }
                 if(!share_rates || rates.size() == 0) {
-                    rates.emplace_back(rateDistributionForName(rateDistName));
+                    rates.emplace_back(rateDistributionForName(rateDistName, invariant));
                     rates.back()->setNamespace(p.name + '.' + rates.back()->getNamespace());
                 }
                 partitionModels[p.name] = star_optim::PartitionModel { models.back().get(), rates.back().get() };

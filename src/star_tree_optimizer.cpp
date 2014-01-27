@@ -303,9 +303,9 @@ size_t StarTreeOptimizer::optimize()
 
         const size_t nParam = toFit.size();
         LOG_INFO(log) << "Fitting " << nParam << " parameters";
-        for(size_t i = 0; i < toFit.size(); i++) {
-            LOG_INFO(log) << "  - " << toFit[i].getName() << '\t' << toFit[i].getValue();
-        }
+        //for(size_t i = 0; i < toFit.size(); i++) {
+            //LOG_INFO(log) << "  - " << toFit[i].getName() << '\t' << toFit[i].getValue();
+        //}
 
         // Optimize
         nlopt::opt opt(nlopt::LN_BOBYQA, nParam);
