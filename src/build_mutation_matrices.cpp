@@ -47,7 +47,7 @@ void mutationCountOfSequence(mutationio::MutationCount& count,
                              const bam1_t* b,
                              const std::string& ref,
                              const bool no_ambiguous,
-                             const std::string partition_name="",
+                             const std::string partition_name = "",
                              const bool by_codon = false)
 {
     assert(b != nullptr && "null bam record");
@@ -68,7 +68,7 @@ void mutationCountOfSequence(mutationio::MutationCount& count,
         if((consumes & 0x3) == 0x3) {  // Reference and query
             for(uint32_t i = 0; i < clen; i++) {
                 const int qb = nt16ToIdx(bam1_seqi(seq, qi + i)),
-                      rb = nt16ToIdx(bam_nt16_table[static_cast<int>(ref[ri + i])]);
+                          rb = nt16ToIdx(bam_nt16_table[static_cast<int>(ref[ri + i])]);
                 if(qb < 4 && rb < 4 && (!no_ambiguous || bq[qi + i] % 100 == 0)) {
                     partitions[by_codon ? (ri + i) % 3 : 0][(rb * 4) + qb] += 1;
                 }

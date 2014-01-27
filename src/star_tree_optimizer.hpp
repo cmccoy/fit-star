@@ -19,8 +19,7 @@ namespace star_optim
 
 struct AlignedPair;
 
-struct PartitionModel
-{
+struct PartitionModel {
     bpp::SubstitutionModel* model;
     bpp::DiscreteDistribution* rateDist;
 };

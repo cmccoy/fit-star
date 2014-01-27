@@ -319,13 +319,13 @@ int main(const int argc, const char** argv)
     if(vm.count("kappa-prior"))
         optimizer.hky85KappaPrior(hky85KappaPrior);
     if(vm.count("gamma-alpha")) {
-        for(auto &r : rates)
+        for(auto& r : rates)
             r->setParameterValue("alpha", gammaAlpha);
-        for(auto &p : optimizer.fitRates())
+        for(auto& p : optimizer.fitRates())
             p.second = false;
     } else if(rateDistName == "constant") {
         int i = 0;
-        for(auto &p : optimizer.fitRates())
+        for(auto& p : optimizer.fitRates())
             if(i++ == 0) p.second = false;
     }
     if(vm.count("threshold"))

@@ -28,7 +28,8 @@ namespace star_optim
 
 cpplog::StdErrLogger log;
 
-std::string nlOptSuccessCodeToString(const int r) {
+std::string nlOptSuccessCodeToString(const int r)
+{
     switch(r) {
         case nlopt::SUCCESS: return "success";
         case nlopt::STOPVAL_REACHED: return "stopping value reached";
@@ -130,12 +131,12 @@ double pairLogLikelihood(const int beagleInstance, const Eigen::Matrix4d& substi
     double logLike = 1;
     const int weightIndex = 0, freqIndex = 0;
     int returnCode = beagleCalculateRootLogLikelihoods(beagleInstance,               // instance
-                                                       &rootIndex,
-                                                       &weightIndex,
-                                                       &freqIndex,
-                                                       &rootIndex,
-                                                       1,
-                                                       &logLike);
+                     &rootIndex,
+                     &weightIndex,
+                     &freqIndex,
+                     &rootIndex,
+                     1,
+                     &logLike);
     beagleCheck(returnCode, "rootLogLike");
     return logLike;
 }
@@ -156,12 +157,12 @@ void updateBeagleInstance(const int instance,
 
     //const double normExpectation = std::inner_product(r.begin(), r.end(), p.begin(), 0.0);
     //if(std::abs(normExpectation - 1.0) > 1e-2) {
-        //LOG_INFO(log) << "Expected rate: " << normExpectation << '\n';
-        //auto pList = rates.getParameters();
-        //for(int i = 0; i < pList.size(); i++) {
-            //LOG_WARN(log) << pList[i].getName() << "\t=\t" << pList[i].getValue() << '\n';
-        //}
-        //assert(false && "Expected rate is not 1.0");
+    //LOG_INFO(log) << "Expected rate: " << normExpectation << '\n';
+    //auto pList = rates.getParameters();
+    //for(int i = 0; i < pList.size(); i++) {
+    //LOG_WARN(log) << pList[i].getName() << "\t=\t" << pList[i].getValue() << '\n';
+    //}
+    //assert(false && "Expected rate is not 1.0");
     //}
 
     // Fill rates
@@ -247,15 +248,15 @@ double nlLogLike(const std::vector<double>& x, std::vector<double>& grad, void* 
 // StarTreeOptimizer
 StarTreeOptimizer::StarTreeOptimizer(const std::unordered_map<std::string, PartitionModel>& models,
                                      std::vector<AlignedPair>& sequences) :
-        partitionModels_(models),
-        sequences_(sequences),
-        threshold_(0.1),
-        maxRounds_(30),
-        maxIterations_(1000),
-        bitTolerance_(50),
-        minSubsParam_(1e-5),
-        maxSubsParam_(20.0),
-        hky85KappaPrior_(-1.0)
+    partitionModels_(models),
+    sequences_(sequences),
+    threshold_(0.1),
+    maxRounds_(30),
+    maxIterations_(1000),
+    bitTolerance_(50),
+    minSubsParam_(1e-5),
+    maxSubsParam_(20.0),
+    hky85KappaPrior_(-1.0)
 {
     // BEAGLE
     beagleInstances_.resize(1);
@@ -263,12 +264,12 @@ StarTreeOptimizer::StarTreeOptimizer(const std::unordered_map<std::string, Parti
     beagleInstances_.resize(omp_get_max_threads());
 #endif
     for(std::unordered_map<std::string, int>& m : beagleInstances_) {
-        for(const auto &p : models) {
+        for(const auto& p : models) {
             m[p.first] = createBeagleInstance(*p.second.model, *p.second.rateDist);
         }
     }
 
-    for(const auto &p : models)
+    for(const auto& p : models)
         fitRates_[p.first] = true;
 }
 
@@ -296,7 +297,7 @@ size_t StarTreeOptimizer::optimize()
             bpp::SubstitutionModel* model = p.second.model;
             bpp::DiscreteDistribution* r = p.second.rateDist;
             toFit.includeParameters(model->getIndependentParameters());
-            if (fitRates_[p.first]) {
+            if(fitRates_[p.first]) {
                 toFit.includeParameters(r->getIndependentParameters());
             }
         }
@@ -304,7 +305,7 @@ size_t StarTreeOptimizer::optimize()
         const size_t nParam = toFit.size();
         LOG_INFO(log) << "Fitting " << nParam << " parameters";
         //for(size_t i = 0; i < toFit.size(); i++) {
-            //LOG_INFO(log) << "  - " << toFit[i].getName() << '\t' << toFit[i].getValue();
+        //LOG_INFO(log) << "  - " << toFit[i].getName() << '\t' << toFit[i].getValue();
         //}
 
         // Optimize
@@ -410,7 +411,7 @@ double StarTreeOptimizer::starLikelihood()
 double StarTreeOptimizer::starLikelihood(const std::string& partition)
 {
     double result = 0.0;
-    auto finder = [&partition](const Partition& p) { return p.name == partition; };
+    auto finder = [&partition](const Partition & p) { return p.name == partition; };
 #ifdef _OPENMP
     #pragma omp parallel for reduction(+:result)
 #endif

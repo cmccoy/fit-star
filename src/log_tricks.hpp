@@ -13,11 +13,11 @@ T logSum(const T x, const T y)
     const static T NATS = 400;
 
     const T temp = y - x;
-    if (temp > NATS || x < logLimit)
+    if(temp > NATS || x < logLimit)
         return y;
-    if (temp < -NATS || y < logLimit)
+    if(temp < -NATS || y < logLimit)
         return x;
-    if (temp < 0)
+    if(temp < 0)
         return x + std::log1p(std::exp(temp));
     return y + std::log1p(std::exp(-temp));
 }

@@ -18,7 +18,7 @@ struct SamRecord {
     }
 
     SamRecord& operator=(const SamRecord& other) = delete;
-    SamRecord& operator=(SamRecord&& other)
+    SamRecord& operator=(SamRecord && other)
     {
         record = other.record;
         other.record = nullptr;
@@ -66,7 +66,8 @@ public:
     ///
     /// \param fp
     /// \param bamrec Initialized BAM record - is immediately filled with first entry from fp
-    SamIterator(samfile_t* fp, bam1_t* bamrec) : fp_(fp), bamrec_(bamrec) {
+    SamIterator(samfile_t* fp, bam1_t* bamrec) : fp_(fp), bamrec_(bamrec)
+    {
         increment();
     }
 
@@ -81,7 +82,7 @@ private:
         }
     }
 
-    bool equal(const SamIterator & other) const
+    bool equal(const SamIterator& other) const
     {
         return this->bamrec_ == other.bamrec_;
     }
