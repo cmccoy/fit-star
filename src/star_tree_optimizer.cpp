@@ -321,10 +321,6 @@ size_t StarTreeOptimizer::optimize()
             if(boost::algorithm::ends_with(bp.getName(), "Constant.value")) {
                 lowerBounds[i] = 1e-6;
                 upperBounds[i] = 20;
-            } else if (boost::algorithm::ends_with(bp.getName(), "Gamma.alpha")) {
-                // The Bio++ implementation fails at small alpha
-                lowerBounds[i] = 0.1;
-                upperBounds[i] = 20;
             } else if(!bp.hasConstraint())
                 continue;
             else {
