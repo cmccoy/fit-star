@@ -104,6 +104,9 @@ TEST(GTR, simple_jc) {
 TEST(GTR, known_distance) {
     bpp::DNA dna;
     std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
+    model->setParameterValue("theta", 0.4);
+    model->setParameterValue("theta2", 0.6);
+
     bpp::RateDistributionFactory fac(4);
     std::unique_ptr<bpp::DiscreteDistribution> rates(fac.createDiscreteDistribution("Constant"));
 
@@ -136,6 +139,7 @@ TEST(GTR, gamma_variation) {
     model->setParameterValue("a", 0.5);
     model->setParameterValue("theta", 0.6);
     model->setParameterValue("theta1", 0.4);
+    model->setParameterValue("theta2", 0.4);
 
     std::vector<AlignedPair> v { AlignedPair() };
 
