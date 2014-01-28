@@ -12,3 +12,9 @@ TEST(logSum, one_large) {
     const double y = -500000;
     ASSERT_NEAR(x, logSum(x, y), 1e-6);
 }
+
+TEST(logSum, one_large_one_medium) {
+    const double x = std::log(0.1);
+    const double y = std::log(1e-6);
+    ASSERT_NEAR(std::log(0.1 + 1e-6), logSum(x, y), 1e-8);
+}
