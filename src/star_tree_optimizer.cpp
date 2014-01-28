@@ -254,6 +254,7 @@ StarTreeOptimizer::StarTreeOptimizer(const std::unordered_map<std::string, Parti
     maxRounds_(30),
     maxIterations_(1000),
     bitTolerance_(50),
+    maxTime_(30 * 60),
     minSubsParam_(1e-5),
     maxSubsParam_(20.0),
     hky85KappaPrior_(-1.0)
@@ -336,6 +337,7 @@ size_t StarTreeOptimizer::optimize()
         opt.set_ftol_abs(threshold());
         opt.set_xtol_rel(0.001);
         opt.set_maxeval(maxIterations());
+        opt.set_maxtime(maxTime());
 
         std::vector<double> x(nParam);
         for(size_t i = 0; i < nParam; i++) {

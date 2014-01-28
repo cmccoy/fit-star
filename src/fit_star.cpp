@@ -240,7 +240,7 @@ int main(const int argc, const char** argv)
     std::vector<std::string> inputPaths;
     bool noBranchLengths = false, shareRates = false, shareModels = false, addRate = false, invariant = false;
     double hky85KappaPrior = -1;
-    double gammaAlpha = -1, threshold = 0.1;
+    double gammaAlpha = -1, threshold = 0.1, maxTimePerRound = 30 * 60;
     size_t maxRounds = 30, maxIterations = 1000;
 
     // command-line parsing
@@ -259,6 +259,7 @@ int main(const int argc, const char** argv)
     ("threshold,t", po::value(&threshold), "Minimum improvement in an iteration to continue fitting")
     ("max-rounds,r", po::value(&maxRounds), "Maximum number of fitting rounds")
     ("max-iterations", po::value(&maxIterations), "Maximum number of iterations per round")
+    ("max-time", po::value(&maxTimePerRound), "Maximum time (s) per fitting round (default: 30 minutes)")
     ("share-rates", po::bool_switch(&shareRates), "Share rate distribution")
     ("add-rates", po::bool_switch(&addRate), "Add relative rate to secondary mutation models")
     ("share-models", po::bool_switch(&shareModels), "Share substitution model")
@@ -333,6 +334,7 @@ int main(const int argc, const char** argv)
     if(vm.count("max-rounds"))
         optimizer.maxRounds(maxRounds);
     optimizer.maxIterations(maxIterations);
+    optimizer.maxTime(maxTimePerRound);
 
     if(addRate) {
         for(size_t i = 1; i < models.size(); i++)

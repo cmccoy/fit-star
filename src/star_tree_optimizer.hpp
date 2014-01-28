@@ -39,6 +39,10 @@ public:
     size_t& maxIterations() { return maxIterations_; };
     const size_t& maxIterations() const { return maxIterations_; };
     void maxIterations(const size_t value) { maxIterations_ = value; }
+    /// Maximum time in seconds
+    double& maxTime() { return maxTime_; };
+    const double & maxTime() const { return maxTime_; };
+    void maxTime(const double value) { maxTime_ = value; }
     /// Minimum value for substitution parameters
     double& minSubsParam() { return minSubsParam_; };
     const double& minSubsParam() const { return minSubsParam_; };
@@ -79,7 +83,7 @@ private:
     std::vector<AlignedPair>& sequences_;
     double threshold_;
     size_t maxRounds_, maxIterations_, bitTolerance_;
-    double minSubsParam_, maxSubsParam_, hky85KappaPrior_;
+    double maxTime_, minSubsParam_, maxSubsParam_, hky85KappaPrior_;
     std::unordered_map<std::string, bool> fitRates_;
 };
 

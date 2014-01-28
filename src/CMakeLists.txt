@@ -20,8 +20,17 @@ add_library(libstaropt
             mutationio.pb.cc
             star_tree_optimizer.cpp)
 set_target_properties(libstaropt PROPERTIES OUTPUT_NAME staropt)
-target_link_libraries(libstaropt protobuf z c pthread bam nlopt bpp-phyl bpp-core bpp-seq
-                      ${HMS_BEAGLE_LIBRARIES})
+target_link_libraries(libstaropt
+  protobuf
+  z
+  c
+  pthread
+  bam
+  nlopt
+  bpp-phyl
+  bpp-core
+  bpp-seq
+  ${HMS_BEAGLE_LIBRARIES})
 
 # Build mutation matrices
 add_executable(build-mutation-matrices
