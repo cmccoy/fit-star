@@ -23,7 +23,7 @@
 
 #include <cpplog.hpp>
 
-namespace star_optim
+namespace fit_star
 {
 
 cpplog::StdErrLogger log;

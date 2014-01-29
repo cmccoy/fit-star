@@ -14,7 +14,7 @@ class DiscreteDistribution;
 class ParameterList;
 }
 
-namespace star_optim
+namespace fit_star
 {
 
 struct AlignedPair;

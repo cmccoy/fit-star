@@ -43,16 +43,16 @@
 #include <vector>
 #include "mutationio.pb.h"
 
-
+using namespace fit_star;
 namespace po = boost::program_options;
 
 cpplog::StdErrLogger logger;
 
-void loadAlignedPairsFromFile(const std::string& file_path, std::vector<star_optim::AlignedPair>& dest)
+void loadAlignedPairsFromFile(const std::string& file_path, std::vector<fit_star::AlignedPair>& dest)
 {
     std::fstream in(file_path, std::ios::binary | std::ios::in);
     for(DelimitedProtocolBufferIterator<mutationio::MutationCount> it(in, true), end; it != end; it++) {
-        star_optim::AlignedPair sequence;
+        fit_star::AlignedPair sequence;
         const mutationio::MutationCount& m = *it;
         if(m.has_name())
             sequence.name = m.name();
@@ -126,15 +126,15 @@ std::unique_ptr<bpp::DiscreteDistribution> rateDistributionForName(const std::st
 }
 
 void writeResults(std::ostream& out,
-                  const std::unordered_map<std::string, star_optim::PartitionModel>& models,
-                  const std::vector<star_optim::AlignedPair>& sequences,
+                  const std::unordered_map<std::string, fit_star::PartitionModel>& models,
+                  const std::vector<fit_star::AlignedPair>& sequences,
                   const double logLikelihood,
                   const bool include_branch_lengths = true)
 {
     Json::Value root;
     Json::Value partitionsNode(Json::arrayValue);
 
-    auto f = [](double acc, const star_optim::AlignedPair & s) { return acc + s.distance; };
+    auto f = [](double acc, const fit_star::AlignedPair & s) { return acc + s.distance; };
     const double meanBranchLength = std::accumulate(sequences.begin(), sequences.end(), 0.0, f) / sequences.size();
     root["meanBranchLength"] = meanBranchLength;
 
@@ -224,7 +224,7 @@ void writeResults(std::ostream& out,
     root["logLikelihood"] = logLikelihood;
     if(include_branch_lengths) {
         Json::Value blNode(Json::arrayValue);
-        for(const star_optim::AlignedPair& sequence : sequences)
+        for(const fit_star::AlignedPair& sequence : sequences)
             blNode.append(sequence.distance);
         root["branchLengths"] = blNode;
     }
@@ -289,7 +289,7 @@ int main(const int argc, const char** argv)
         return 1;
     }
 
-    std::vector<star_optim::AlignedPair> sequences;
+    std::vector<fit_star::AlignedPair> sequences;
     for(const std::string& path : inputPaths) {
         LOG_INFO(logger) << "Loading from " << path << '\n';
         loadAlignedPairsFromFile(path, sequences);
@@ -299,9 +299,9 @@ int main(const int argc, const char** argv)
     std::vector<std::unique_ptr<bpp::SubstitutionModel>> models;
     std::vector<std::unique_ptr<bpp::DiscreteDistribution>> rates;
 
-    std::unordered_map<std::string, star_optim::PartitionModel> partitionModels;
-    for(const star_optim::AlignedPair& sequence : sequences) {
-        for(const star_optim::Partition& p : sequence.partitions) {
+    std::unordered_map<std::string, fit_star::PartitionModel> partitionModels;
+    for(const fit_star::AlignedPair& sequence : sequences) {
+        for(const fit_star::Partition& p : sequence.partitions) {
             if(partitionModels.count(p.name) == 0) {
                 if(!shareModels || models.size() == 0) {
                     models.emplace_back(substitutionModelForName(modelName));
@@ -311,12 +311,12 @@ int main(const int argc, const char** argv)
                     rates.emplace_back(rateDistributionForName(rateDistName, invariant));
                     rates.back()->setNamespace(p.name + '.' + rates.back()->getNamespace());
                 }
-                partitionModels[p.name] = star_optim::PartitionModel { models.back().get(), rates.back().get() };
+                partitionModels[p.name] = fit_star::PartitionModel { models.back().get(), rates.back().get() };
             }
         }
     }
 
-    star_optim::StarTreeOptimizer optimizer(partitionModels, sequences);
+    fit_star::StarTreeOptimizer optimizer(partitionModels, sequences);
     if(vm.count("kappa-prior"))
         optimizer.hky85KappaPrior(hky85KappaPrior);
     if(vm.count("gamma-alpha")) {

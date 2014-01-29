@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <boost/program_options.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream.h>
@@ -22,15 +23,7 @@
 
 namespace po = boost::program_options;
 namespace protoio = google::protobuf::io;
-
-bool endsWith(const std::string& s, const std::string& suffix)
-{
-    if(s.length() >= suffix.length()) {
-        return (0 == s.compare(s.length() - suffix.length(), suffix.length(), suffix));
-    } else {
-        return false;
-    }
-}
+using namespace fit_star;
 
 inline int nt16ToIdx(const int b)
 {
@@ -150,7 +143,7 @@ int main(int argc, char* argv[])
     protoio::OstreamOutputStream rawOut(&out);
     protoio::GzipOutputStream zipOut(&rawOut);
     protoio::ZeroCopyOutputStream* outptr = &rawOut;
-    if(endsWith(outputPath, ".gz"))
+    if(boost::algorithm::ends_with(outputPath, ".gz"))
         outptr = &zipOut;
 
     for(const std::string& bamPath : bamPaths) {
@@ -202,3 +195,4 @@ int main(int argc, char* argv[])
 
     return 0;
 }
+

@@ -1,6 +1,8 @@
 #include "log_tricks.hpp"
 #include "gtest/gtest.h"
 
+using namespace fit_star;
+
 TEST(logSum, both_large) {
     const double x = 0.1;
     const double y = 0.1;

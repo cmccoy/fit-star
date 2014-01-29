@@ -6,6 +6,9 @@
 
 #include <boost/iterator/iterator_facade.hpp>
 
+namespace fit_star
+{
+
 struct SamRecord {
     SamRecord() : record(bam_init1()) {}
     ~SamRecord() { if(record != nullptr) bam_destroy1(record); }
@@ -92,5 +95,7 @@ private:
     samfile_t* fp_;
     bam1_t* bamrec_;
 };
+
+} // Namespace
 
 #endif

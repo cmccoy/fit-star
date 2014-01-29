@@ -4,7 +4,7 @@
 #include <string>
 #include <Eigen/Dense>
 
-namespace star_optim
+namespace fit_star
 {
 
 struct Partition {

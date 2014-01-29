@@ -4,6 +4,8 @@
 #include <cmath>
 #include <limits>
 
+namespace fit_star
+{
 
 template<typename T>
 T logSum(const T x, const T y)
@@ -20,6 +22,8 @@ T logSum(const T x, const T y)
     if(temp < 0)
         return x + std::log1p(std::exp(temp));
     return y + std::log1p(std::exp(-temp));
+}
+
 }
 
 #endif

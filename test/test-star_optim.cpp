@@ -18,7 +18,7 @@
 #include <Bpp/Seq/Container/VectorSiteContainer.h>
 #include <Bpp/Seq/Sequence.h>
 
-using namespace star_optim;
+using namespace fit_star;
 
 bpp::DNA DNA;
 
@@ -56,7 +56,7 @@ void checkAgainstBpp(std::vector<AlignedPair>& sequences,
     std::unordered_map<std::string, PartitionModel> models ;
     models[""] =  PartitionModel { model.get(), rates.get() };
 
-    star_optim::StarTreeOptimizer optimizer(models, sequences);
+    fit_star::StarTreeOptimizer optimizer(models, sequences);
     const double starLL = optimizer.starLikelihood("");
 
     VectorSiteContainer sites = createSites(sequences[0]);

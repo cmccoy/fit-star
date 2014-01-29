@@ -13,6 +13,9 @@
 #include <string>
 #include <vector>
 
+namespace fit_star
+{
+
 template<typename T>
 class DelimitedProtocolBufferIterator :
     public boost::iterator_facade<DelimitedProtocolBufferIterator<T>, T, boost::single_pass_traversal_tag>
@@ -122,5 +125,7 @@ void writeDelimitedItem(google::protobuf::io::ZeroCopyOutputStream& out,
     coded_out.WriteVarint32(item.ByteSize());
     item.SerializeWithCachedSizes(&coded_out);
 }
+
+} // Namespace
 
 #endif

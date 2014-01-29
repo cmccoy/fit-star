@@ -57,7 +57,7 @@ flags = [
 '-I', 'src',
 '-I', 'lib/eigen_3.2.0',
 '-I', 'lib/samtools',
-'-I', 'lib/boost_1.54.0',
+'-I', 'lib/boost_1.55.0',
 '-I', 'lib/nlopt-2.4.1/api',
 '-I', 'lib/gtest-1.7.0/include',
 ]

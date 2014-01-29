@@ -4,7 +4,9 @@
 -Weffc++
 -g
 -fopenmp
+-Isrc
 -Ilib/eigen_3.2.0
 -Ilib/samtools
--Ilib/boost_1.54.0
+-Ilib/boost_1.55.0
+-Ilib/nlopt-2.4.1/api
 -Ilib/gtest-1.7.0/include
