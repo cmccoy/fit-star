@@ -82,8 +82,12 @@ void mutationCountOfSequence(mutationio::MutationCount& count,
 
     int p = 0;
     for(const std::vector<int>& v : partitions) {
+        std::string name = partition_name;
+        if(partitions.size() > 1)
+            name += "p" + std::to_string(p++);
+
         mutationio::Partition* partition = count.add_partition();
-        partition->set_name(partition_name + "p" + std::to_string(p++));
+        partition->set_name(name);
         for(const int i : v)
             partition->add_substitution(i);
     }
@@ -108,6 +112,7 @@ int main(int argc, char* argv[])
     bool by_codon = false;
     bool no_group_by_qname = false;
     size_t maxRecords = 0;
+    int prefix = 4;
 
     po::options_description desc("Allowed options");
     desc.add_options()
@@ -115,7 +120,8 @@ int main(int argc, char* argv[])
     ("version,v", "Print version")
     ("no-ambiguous", po::bool_switch(&no_ambiguous), "Do not include ambiguous sites")
     ("by-codon", po::bool_switch(&by_codon), "Partition by codon")
-    ("max-records,n", po::value<size_t>(&maxRecords), "Maximum number of records to parse")
+    ("max-records,n", po::value(&maxRecords), "Maximum number of records to parse")
+    ("prefix", po::value(&prefix), "Prefix of reference sequence to use as group (default: 4; use -1 for full string)")
     ("input-fasta,f", po::value<std::string>(&fastaPath)->required(), "Path to (indexed) FASTA file")
     ("input-bam,i", po::value(&bamPaths)->composing()->required(), "Path to BAM(s)")
     ("no-group", po::bool_switch(&no_group_by_qname), "Do *not* group records by name")
@@ -180,7 +186,8 @@ int main(int argc, char* argv[])
             const std::string& ref = targetBases[(*it)->core.tid];
 
             // Assign a group based on germline prefix
-            target_name.resize(4);
+            if(prefix >= 0)
+                target_name.resize(prefix);
 
             mutationCountOfSequence(count, *it, ref, no_ambiguous, target_name, by_codon);
         }
