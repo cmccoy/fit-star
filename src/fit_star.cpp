@@ -159,15 +159,20 @@ void writeResults(std::ostream& out,
     }
     root["parameters"] = paramNode;
 
-    for(auto it = models.begin(), end = models.end(); it != end; it++) {
+    using p = std::pair<std::string, fit_star::PartitionModel>;
+    std::vector<p> parts(models.begin(), models.end());
+    std::sort(parts.begin(), parts.end(), [](const p& x, const p& y) {
+        return x.first < y.first;
+    });
+
+    for(const p& part : parts) {
         Json::Value modelNode(Json::objectValue);
-        modelNode["partition"] = it->first;
+        modelNode["partition"] = part.first;
         Json::Value rateNode(Json::objectValue);
         Json::Value parameterNode(Json::objectValue);
         Json::Value piNode(Json::arrayValue);
-        std::unique_ptr<bpp::SubstitutionModel> model(it->second.model->clone());
-        std::unique_ptr<bpp::DiscreteDistribution> r(it->second.rateDist->clone());
-
+        std::unique_ptr<bpp::SubstitutionModel> model(part.second.model->clone());
+        std::unique_ptr<bpp::DiscreteDistribution> r(part.second.rateDist->clone());
 
         model->setNamespace(model->getName() + ".");
         bpp::ParameterList p = model->getParameters();
