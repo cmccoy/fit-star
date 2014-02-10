@@ -246,7 +246,7 @@ int main(const int argc, const char** argv)
     bool noBranchLengths = false, shareRates = false, shareModels = false, addRate = false, invariant = false, noFixRootFreqs = false;
     double hky85KappaPrior = -1;
     double gammaAlpha = -1, threshold = 0.1, maxTimePerRound = 30 * 60;
-    size_t maxRounds = 30, maxIterations = 1000;
+    size_t maxRounds = 100, maxIterations = 1000;
 
     // command-line parsing
     po::options_description desc("Allowed options");
