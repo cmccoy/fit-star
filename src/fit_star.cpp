@@ -147,6 +147,14 @@ void writeResults(std::ostream& out,
     for(size_t i = 0; i < pl.size(); i++) {
         paramNode[pl[i].getName()] = pl[i].getValue();
     }
+
+    // State names
+    Json::Value states(Json::arrayValue);
+    const bpp::Alphabet* alph = models.begin()->second.model->getAlphabet();
+    for(int i = 0; i < alph->getSize(); i++)
+        states.append(alph->getState(i).getLetter());
+    root["states"] = states;
+
     root["independentParameters"] = paramNode;
     root["degreesOfFreedom"] = static_cast<int>(pl.size() + sequences.size());
     paramNode = Json::Value(Json::objectValue);
@@ -246,7 +254,7 @@ int main(const int argc, const char** argv)
     bool noBranchLengths = false, shareRates = false, shareModels = false, addRate = false, invariant = false;
     double hky85KappaPrior = -1;
     double gammaAlpha = -1, threshold = 0.1, maxTimePerRound = 30 * 60;
-    size_t maxRounds = 30, maxIterations = 1000;
+    size_t maxRounds = 100, maxIterations = 1000;
 
     // command-line parsing
     po::options_description desc("Allowed options");
