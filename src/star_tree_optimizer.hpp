@@ -41,7 +41,7 @@ public:
     void maxIterations(const size_t value) { maxIterations_ = value; }
     /// Maximum time in seconds
     double& maxTime() { return maxTime_; };
-    const double & maxTime() const { return maxTime_; };
+    const double& maxTime() const { return maxTime_; };
     void maxTime(const double value) { maxTime_ = value; }
     /// Minimum value for substitution parameters
     double& minSubsParam() { return minSubsParam_; };
@@ -59,6 +59,10 @@ public:
     double& hky85KappaPrior() { return hky85KappaPrior_; };
     const double& hky85KappaPrior() const { return hky85KappaPrior_; };
     void hky85KappaPrior(const double value) { hky85KappaPrior_ = value; }
+    /// Should the root frequencies be fixed to 1 for each state?
+    bool& fixRootFrequencies() { return fixRootFrequencies_; };
+    const bool& fixRootFrequencies() const { return fixRootFrequencies_; };
+    void fixRootFrequencies(const bool value);
     /// Should the rate distribution be fit for each partition?
     std::unordered_map<std::string, bool>& fitRates() { return fitRates_; };
     const std::unordered_map<std::string, bool>& fitRates() const { return fitRates_; };
@@ -84,6 +88,7 @@ private:
     double threshold_;
     size_t maxRounds_, maxIterations_, bitTolerance_;
     double maxTime_, minSubsParam_, maxSubsParam_, hky85KappaPrior_;
+    bool fixRootFrequencies_;
     std::unordered_map<std::string, bool> fitRates_;
 };
 

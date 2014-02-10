@@ -243,7 +243,7 @@ int main(const int argc, const char** argv)
 
     std::string outputPath, modelName = "GTR", rateDistName = "constant";
     std::vector<std::string> inputPaths;
-    bool noBranchLengths = false, shareRates = false, shareModels = false, addRate = false, invariant = false;
+    bool noBranchLengths = false, shareRates = false, shareModels = false, addRate = false, invariant = false, noFixRootFreqs = false;
     double hky85KappaPrior = -1;
     double gammaAlpha = -1, threshold = 0.1, maxTimePerRound = 30 * 60;
     size_t maxRounds = 30, maxIterations = 1000;
@@ -266,6 +266,7 @@ int main(const int argc, const char** argv)
     ("max-iterations", po::value(&maxIterations), "Maximum number of iterations per round")
     ("max-time", po::value(&maxTimePerRound), "Maximum time (s) per fitting round (default: 30 minutes)")
     ("share-rates", po::bool_switch(&shareRates), "Share rate distribution")
+    ("no-fix-root-frequencies", po::bool_switch(&noFixRootFreqs), "Do *not* fix root frequencies")
     ("add-rates", po::bool_switch(&addRate), "Add relative rate to secondary mutation models")
     ("share-models", po::bool_switch(&shareModels), "Share substitution model")
     ("no-branch-lengths", po::bool_switch(&noBranchLengths), "*do not* include fit branch lengths in output");
@@ -322,6 +323,7 @@ int main(const int argc, const char** argv)
     }
 
     fit_star::StarTreeOptimizer optimizer(partitionModels, sequences);
+    optimizer.fixRootFrequencies(!noFixRootFreqs);
     if(vm.count("kappa-prior"))
         optimizer.hky85KappaPrior(hky85KappaPrior);
     if(vm.count("gamma-alpha")) {

@@ -57,6 +57,7 @@ void checkAgainstBpp(std::vector<AlignedPair>& sequences,
     models[""] =  PartitionModel { model.get(), rates.get() };
 
     fit_star::StarTreeOptimizer optimizer(models, sequences);
+    optimizer.fixRootFrequencies(false);
     const double starLL = optimizer.starLikelihood("");
 
     VectorSiteContainer sites = createSites(sequences[0]);

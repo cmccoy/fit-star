@@ -102,7 +102,7 @@ double pairLogLikelihood(const int beagleInstance, const Eigen::Matrix4d& substi
     beagleCheck(beagleSetPatternWeights(beagleInstance, patternWeights.data()));
 
     std::vector<int> nodeIndices { 0, 1 };
-    std::vector<double> edgeLengths { distance, 0 };
+    std::vector<double> edgeLengths { 0, distance };
     const int rootIndex = 2;
 
     beagleCheck(beagleUpdateTransitionMatrices(beagleInstance,
@@ -144,7 +144,8 @@ double pairLogLikelihood(const int beagleInstance, const Eigen::Matrix4d& substi
 /// \brief Update a BEAGLE instance
 void updateBeagleInstance(const int instance,
                           const bpp::SubstitutionModel& model,
-                          const bpp::DiscreteDistribution& rates)
+                          const bpp::DiscreteDistribution& rates,
+                          const bool fixRootFrequencies)
 {
     const size_t nStates = static_cast<size_t>(model.getNumberOfStates());
     std::vector<double> r = rates.getCategories();
@@ -190,12 +191,18 @@ void updateBeagleInstance(const int instance,
     beagleSetEigenDecomposition(instance, 0, evec.data(), ivec.data(), eval.data());
 
     // And state frequencies
-    beagleSetStateFrequencies(instance, 0, model.getFrequencies().data());
+    if(fixRootFrequencies) {
+        std::vector<double> freqs(model.getNumberOfStates(), 1.0);
+        beagleSetStateFrequencies(instance, 0, freqs.data());
+    } else {
+        beagleSetStateFrequencies(instance, 0, model.getFrequencies().data());
+    }
 }
 
 /// \brief Create a BEAGLE instance
 int createBeagleInstance(const bpp::SubstitutionModel& model,
-                         const bpp::DiscreteDistribution& rates)
+                         const bpp::DiscreteDistribution& rates,
+                         const bool fixRootFrequencies = false)
 {
     const int nStates = model.getNumberOfStates();
     const int nRates = rates.getNumberOfCategories();
@@ -218,7 +225,7 @@ int createBeagleInstance(const bpp::SubstitutionModel& model,
                          &deets);
 
     beagleCheck(instance);
-    updateBeagleInstance(instance, model, rates);
+    updateBeagleInstance(instance, model, rates, fixRootFrequencies);
     return instance;
 }
 
@@ -257,7 +264,8 @@ StarTreeOptimizer::StarTreeOptimizer(const std::unordered_map<std::string, Parti
     maxTime_(30 * 60),
     minSubsParam_(1e-5),
     maxSubsParam_(20.0),
-    hky85KappaPrior_(-1.0)
+    hky85KappaPrior_(-1.0),
+    fixRootFrequencies_(true)
 {
     // BEAGLE
     beagleInstances_.resize(1);
@@ -266,7 +274,7 @@ StarTreeOptimizer::StarTreeOptimizer(const std::unordered_map<std::string, Parti
 #endif
     for(std::unordered_map<std::string, int>& m : beagleInstances_) {
         for(const auto& p : models) {
-            m[p.first] = createBeagleInstance(*p.second.model, *p.second.rateDist);
+            m[p.first] = createBeagleInstance(*p.second.model, *p.second.rateDist, fixRootFrequencies());
         }
     }
 
@@ -392,7 +400,7 @@ double StarTreeOptimizer::starLikelihood()
     for(const std::unordered_map<std::string, int>& partitionInstanceMap : beagleInstances_) {
         for(const std::pair<std::string, int>& p : partitionInstanceMap) {
             const PartitionModel& partModel = partitionModels_[p.first];
-            updateBeagleInstance(p.second, *partModel.model, *partModel.rateDist);
+            updateBeagleInstance(p.second, *partModel.model, *partModel.rateDist, fixRootFrequencies());
         }
     }
 
@@ -482,6 +490,20 @@ bool StarTreeOptimizer::matchParameters(const bpp::ParameterList& pl)
     }
 
     return result;
+}
+
+void StarTreeOptimizer::fixRootFrequencies(const bool value)
+{
+    const bool current = fixRootFrequencies();
+    if(current != value) {
+        fixRootFrequencies_ = value;
+        for(const std::unordered_map<std::string, int>& partitionInstanceMap : beagleInstances_) {
+            for(const std::pair<std::string, int>& p : partitionInstanceMap) {
+                const PartitionModel& partModel = partitionModels_[p.first];
+                updateBeagleInstance(p.second, *partModel.model, *partModel.rateDist, value);
+            }
+        }
+    }
 }
 
 
