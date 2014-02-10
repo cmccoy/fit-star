@@ -26,6 +26,11 @@
 namespace fit_star
 {
 
+// Constants
+const int REF_BUFFER  = 0;
+const int QRY_BUFFER  = 1;
+const int ROOT_BUFFER = 2;
+
 cpplog::StdErrLogger log;
 
 std::string nlOptSuccessCodeToString(const int r)
@@ -101,9 +106,12 @@ double pairLogLikelihood(const int beagleInstance, const Eigen::Matrix4d& substi
 
     beagleCheck(beagleSetPatternWeights(beagleInstance, patternWeights.data()));
 
-    std::vector<int> nodeIndices { 0, 1 };
+    // 0 branch length to reference
+    // `distance` branch length to query
+    std::vector<int> nodeIndices { REF_BUFFER, QRY_BUFFER };
     std::vector<double> edgeLengths { 0, distance };
-    const int rootIndex = 2;
+
+    const int rootIndex = ROOT_BUFFER;
 
     beagleCheck(beagleUpdateTransitionMatrices(beagleInstance,
                 0,
@@ -178,8 +186,8 @@ void updateBeagleInstance(const int instance,
             qry[nStates * i + j] = j;
         }
     }
-    beagleSetTipStates(instance, 0, ref.data());
-    beagleSetTipStates(instance, 1, qry.data());
+    beagleSetTipStates(instance, REF_BUFFER, ref.data());
+    beagleSetTipStates(instance, QRY_BUFFER, qry.data());
 
     // And eigen decomposition
     std::vector<double> evec(nStates * nStates),
