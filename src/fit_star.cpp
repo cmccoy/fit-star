@@ -129,6 +129,7 @@ void writeResults(std::ostream& out,
                   const std::unordered_map<std::string, fit_star::PartitionModel>& models,
                   const std::vector<fit_star::AlignedPair>& sequences,
                   const double logLikelihood,
+                  const size_t nRounds = -1,
                   const bool include_branch_lengths = true)
 {
     Json::Value root;
@@ -137,6 +138,7 @@ void writeResults(std::ostream& out,
     auto f = [](double acc, const fit_star::AlignedPair & s) { return acc + s.distance; };
     const double meanBranchLength = std::accumulate(sequences.begin(), sequences.end(), 0.0, f) / sequences.size();
     root["meanBranchLength"] = meanBranchLength;
+    root["nRounds"] = static_cast<int>(nRounds);
 
     Json::Value paramNode(Json::objectValue);
     bpp::ParameterList pl;
@@ -360,7 +362,7 @@ int main(const int argc, const char** argv)
         outBuf.push(boost::iostreams::gzip_compressor());
     outBuf.push(file);
     std::ostream outStream(&outBuf);
-    writeResults(outStream, partitionModels, sequences, finalLike, !noBranchLengths);
+    writeResults(outStream, partitionModels, sequences, finalLike, rounds, !noBranchLengths);
 
     google::protobuf::ShutdownProtobufLibrary();
     return 0;
