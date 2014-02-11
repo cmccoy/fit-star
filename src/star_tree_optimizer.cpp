@@ -266,7 +266,7 @@ StarTreeOptimizer::StarTreeOptimizer(const std::unordered_map<std::string, Parti
     partitionModels_(models),
     sequences_(sequences),
     threshold_(0.1),
-    maxRounds_(30),
+    maxRounds_(100),
     maxIterations_(1000),
     bitTolerance_(50),
     maxTime_(30 * 60),

@@ -338,8 +338,7 @@ int main(const int argc, const char** argv)
     }
     if(vm.count("threshold"))
         optimizer.threshold(threshold);
-    if(vm.count("max-rounds"))
-        optimizer.maxRounds(maxRounds);
+    optimizer.maxRounds(maxRounds);
     optimizer.maxIterations(maxIterations);
     optimizer.maxTime(maxTimePerRound);
 
