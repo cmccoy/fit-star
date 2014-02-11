@@ -138,7 +138,8 @@ void writeResults(std::ostream& out,
     auto f = [](double acc, const fit_star::AlignedPair & s) { return acc + s.distance; };
     const double meanBranchLength = std::accumulate(sequences.begin(), sequences.end(), 0.0, f) / sequences.size();
     root["meanBranchLength"] = meanBranchLength;
-    root["nRounds"] = static_cast<int>(nRounds);
+    root["rounds"] = static_cast<int>(nRounds);
+    root["version"] = star_fit::FIT_STAR_VERSION;
 
     Json::Value paramNode(Json::objectValue);
     bpp::ParameterList pl;
@@ -247,8 +248,8 @@ int main(const int argc, const char** argv)
     std::vector<std::string> inputPaths;
     bool noBranchLengths = false, shareRates = false, shareModels = false, addRate = false, invariant = false, noFixRootFreqs = false;
     double hky85KappaPrior = -1;
-    double gammaAlpha = -1, threshold = 0.1, maxTimePerRound = 30 * 60;
-    size_t maxRounds = 100, maxIterations = 1000;
+    double gammaAlpha = -1, threshold = 0.5, maxTimePerRound = 30 * 60;
+    size_t maxRounds = 300, maxIterations = 1000;
 
     // command-line parsing
     po::options_description desc("Allowed options");
@@ -338,8 +339,8 @@ int main(const int argc, const char** argv)
         for(auto& p : optimizer.fitRates())
             if(i++ == 0) p.second = false;
     }
-    if(vm.count("threshold"))
-        optimizer.threshold(threshold);
+
+    optimizer.threshold(threshold);
     optimizer.maxRounds(maxRounds);
     optimizer.maxIterations(maxIterations);
     optimizer.maxTime(maxTimePerRound);
