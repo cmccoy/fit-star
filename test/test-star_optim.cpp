@@ -5,9 +5,10 @@
 #include "star_tree_optimizer.hpp"
 #include "aligned_pair.hpp"
 
-#include "libhmsbeagle/beagle.h"
+#include <libhmsbeagle/beagle.h>
 
-#include "Eigen/Core"
+#include <Eigen/Core>
+#include <Eigen/Eigenvalues>
 
 #include <Bpp/Phyl/Distance/DistanceEstimation.h>
 #include <Bpp/Phyl/Likelihood/DiscreteRatesAcrossSitesTreeLikelihood.h>
@@ -45,6 +46,18 @@ bpp::VectorSiteContainer createSites(const AlignedPair& sequence)
     return result;
 }
 
+double starLogLike(std::vector<AlignedPair>& sequences,
+                   std::unique_ptr<bpp::SubstitutionModel>& model,
+                   std::unique_ptr<bpp::DiscreteDistribution>& rates,
+                   bool fixRootFrequencies = false) {
+    std::unordered_map<std::string, PartitionModel> models ;
+    models[""] =  PartitionModel { model.get(), rates.get() };
+
+    fit_star::StarTreeOptimizer optimizer(models, sequences);
+    optimizer.fixRootFrequencies(fixRootFrequencies);
+    return optimizer.starLikelihood("");
+}
+
 void checkAgainstBpp(std::vector<AlignedPair>& sequences,
                      std::unique_ptr<bpp::SubstitutionModel>& model,
                      std::unique_ptr<bpp::DiscreteDistribution>& rates,
@@ -52,13 +65,7 @@ void checkAgainstBpp(std::vector<AlignedPair>& sequences,
 {
     using namespace bpp;
     ASSERT_EQ(1, sequences.size());
-
-    std::unordered_map<std::string, PartitionModel> models ;
-    models[""] =  PartitionModel { model.get(), rates.get() };
-
-    fit_star::StarTreeOptimizer optimizer(models, sequences);
-    optimizer.fixRootFrequencies(false);
-    const double starLL = optimizer.starLikelihood("");
+    const double starLL = starLogLike(sequences, model, rates, false);
 
     VectorSiteContainer sites = createSites(sequences[0]);
 
@@ -80,7 +87,36 @@ void checkAgainstBpp(std::vector<AlignedPair>& sequences,
     logL = starLL;
 }
 
-TEST(GTR, simple_jc) {
+// Equivalent of checkAgainstBpp, but using fixed root
+void checkAgainstEigen(std::vector<AlignedPair>& sequences,
+                       std::unique_ptr<bpp::SubstitutionModel>& model,
+                       std::unique_ptr<bpp::DiscreteDistribution>& rates)
+{
+    using namespace Eigen;
+
+    ASSERT_EQ(1, sequences.size());
+    ASSERT_EQ(1, sequences[0].partitions.size());
+    ASSERT_EQ(1, rates->getNumberOfCategories());
+
+    Matrix4d Q;
+    auto& gen = model->getGenerator();
+    for(int i = 0; i < 4; i++)
+        for(int j = 0; j < 4; j++)
+            Q(i, j) = gen(i, j);
+
+    const SelfAdjointEigenSolver<Matrix4d> decomp(Q);
+    const Vector4d lambda = (Array4d(decomp.eigenvalues().real()) * sequences[0].distance).exp();
+    const Matrix4d P = decomp.eigenvectors() * lambda.asDiagonal() * decomp.eigenvectors().inverse();
+    auto f = [](const double d) { return std::log(d); };
+    const Matrix4d logP = P.unaryExpr(f);
+
+    double expectedLL = logP.cwiseProduct(sequences[0].partitions[0].substitutions).sum();
+    double actualLL = starLogLike(sequences, model, rates, true);
+
+    EXPECT_NEAR(expectedLL, actualLL, 0.5);
+}
+
+TEST(FitStar, simple_jc) {
     bpp::DNA dna;
     std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
     bpp::RateDistributionFactory fac(4);
@@ -98,17 +134,20 @@ TEST(GTR, simple_jc) {
 
     double ll = 0.0;
     checkAgainstBpp(v, model, rates, ll);
+    checkAgainstEigen(v, model, rates);
     const double expll = -5.62490959465585; // from bppml
     EXPECT_NEAR(expll, ll, 1e-5);
 }
 
-TEST(GTR, known_distance) {
+TEST(FitStar, known_distance) {
     bpp::DNA dna;
     std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
-    model->setParameterValue("theta", 0.4);
-    model->setParameterValue("theta2", 0.6);
+    model->setParameterValue("theta", 0.2);
+    model->setParameterValue("theta2", 0.8);
+    model->setParameterValue("a", 0.45);
+    model->setParameterValue("b", 1.3);
 
-    bpp::RateDistributionFactory fac(4);
+    bpp::RateDistributionFactory fac(1);
     std::unique_ptr<bpp::DiscreteDistribution> rates(fac.createDiscreteDistribution("Constant"));
 
     std::vector<AlignedPair> v { AlignedPair() };
@@ -124,10 +163,12 @@ TEST(GTR, known_distance) {
 
     double ll = 0.0;
     checkAgainstBpp(v, model, rates, ll);
+    checkAgainstEigen(v, model, rates);
 }
 
 
-TEST(GTR, gamma_variation) {
+
+TEST(FitStar, gamma_variation) {
     bpp::DNA dna;
     std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
     bpp::RateDistributionFactory fac(4);
@@ -156,4 +197,5 @@ TEST(GTR, gamma_variation) {
 
     double ll = 0.0;
     checkAgainstBpp(v, model, rates, ll);
+    // No eigen test here - only single category gamma supported
 }
