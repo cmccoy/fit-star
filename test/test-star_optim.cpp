@@ -88,6 +88,21 @@ void checkAgainstBpp(std::vector<AlignedPair>& sequences,
     logL = starLL;
 }
 
+Eigen::MatrixXd bppToEigen(const bpp::Matrix<double>& m) {
+    Eigen::MatrixXd result(m.getNumberOfRows(), m.getNumberOfColumns());
+    for(size_t i = 0; i < m.getNumberOfRows(); i++)
+        for(size_t j = 0; j < m.getNumberOfColumns(); j++)
+            result(i, j) = m(i, j);
+    return result;
+}
+
+Eigen::VectorXd bppToEigen(const std::vector<double>& v) {
+    Eigen::VectorXd result(v.size());
+    for(size_t i = 0; i < v.size(); i++)
+        result[i] = v[i];
+    return result;
+}
+
 // Equivalent of checkAgainstBpp, but using fixed root
 void checkAgainstEigen(std::vector<AlignedPair>& sequences,
                        std::unique_ptr<bpp::SubstitutionModel>& model,
@@ -99,20 +114,42 @@ void checkAgainstEigen(std::vector<AlignedPair>& sequences,
     ASSERT_EQ(1, sequences[0].partitions.size());
 
     Matrix4d Q;
-    auto& gen = model->getGenerator();
+    const bpp::Matrix<double>& gen = model->getGenerator();
     for(size_t i = 0; i < 4; i++)
         for(size_t j = 0; j < 4; j++)
             Q(i, j) = gen(i, j);
 
+    const EigenSolver<Matrix4d> decomp(Q);
+    const Vector4d eval = decomp.eigenvalues().real();
+    const Matrix4d evec = decomp.eigenvectors().real();
+    const Matrix4d ievec = evec.inverse();
 
-    const SelfAdjointEigenSolver<Matrix4d> decomp(Q);
-    std::cout << Q << '\n' << decomp.eigenvalues() << '\n' << decomp.eigenvectors() << '\n';
+    const Vector4d bppEval = bppToEigen(model->getEigenValues());
+    for(size_t i = 0; i < 4; i++) {
+        EXPECT_NEAR(bppEval[i], eval[i], 1e-5);
+    }
+
+    const Eigen::MatrixXd bppIEvec = bppToEigen(model->getRowLeftEigenVectors());
+    const Eigen::MatrixXd bppEvec = bppToEigen(model->getColumnRightEigenVectors());
+    std::cout << "Eigen:\n" << ievec << '\n' 
+        << eval << '\n'
+        << evec << '\n';
+    std::cout << "Bpp:\n" << bppIEvec << '\n' 
+        << bppEval << '\n'
+        << bppEvec  << '\n';
+    for(size_t i = 0; i < 4; i++) {
+        for(size_t j = 0; j < 4; j++) {
+            EXPECT_NEAR(bppEvec(i, j), evec(i, j), 1e-5);
+            EXPECT_NEAR(bppIEvec(i, j), ievec(i, j), 1e-5);
+        }
+    }
+
     const std::vector<double> rates = rateDist->getCategories();
     const std::vector<double> rateProbs = rateDist->getProbabilities();
     std::vector<Matrix4d> pMatrices(rates.size());
     for(size_t i = 0; i < rates.size(); i++) {
-        const Vector4d lambda = (Array4d(decomp.eigenvalues().real()) * sequences[0].distance * rates[i]).exp();
-        pMatrices[i] = decomp.eigenvectors() * lambda.asDiagonal() * decomp.eigenvectors().inverse();
+        const Vector4d lambda = (Array4d(eval) * sequences[0].distance * rates[i]).exp();
+        pMatrices[i] = ievec * lambda.asDiagonal() * evec;
     }
     auto f = [](const double d) { return std::log(d); };
     for(size_t i = 0; i < rates.size(); i++) {
