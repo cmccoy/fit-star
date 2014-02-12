@@ -44,3 +44,6 @@ add_executable(fit-star fit_star.cpp)
 target_link_libraries(fit-star boost-programoptions boost-iostream libstaropt)
 target_link_libraries(fit-star json)
 target_link_libraries(fit-star nlopt)
+
+add_executable(show-mutation-matrices show_mutation_matrices.cpp mutationio.pb.cc)
+target_link_libraries(show-mutation-matrices z c protobuf boost-programoptions)
