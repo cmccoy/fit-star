@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "star_tree_optimizer.hpp"
 #include "aligned_pair.hpp"
+#include "log_tricks.hpp"
 
 #include <libhmsbeagle/beagle.h>
 
@@ -40,7 +41,7 @@ bpp::VectorSiteContainer createSites(const AlignedPair& sequence)
     }
 
     bpp::VectorSiteContainer result(&DNA);
-    for(int i = 0; i < 2; i++)
+    for(size_t i = 0; i < 2; i++)
         result.addSequence(bpp::BasicSequence(names[i], seqs[i], &DNA));
 
     return result;
@@ -90,28 +91,49 @@ void checkAgainstBpp(std::vector<AlignedPair>& sequences,
 // Equivalent of checkAgainstBpp, but using fixed root
 void checkAgainstEigen(std::vector<AlignedPair>& sequences,
                        std::unique_ptr<bpp::SubstitutionModel>& model,
-                       std::unique_ptr<bpp::DiscreteDistribution>& rates)
+                       std::unique_ptr<bpp::DiscreteDistribution>& rateDist)
 {
     using namespace Eigen;
 
     ASSERT_EQ(1, sequences.size());
     ASSERT_EQ(1, sequences[0].partitions.size());
-    ASSERT_EQ(1, rates->getNumberOfCategories());
 
     Matrix4d Q;
     auto& gen = model->getGenerator();
-    for(int i = 0; i < 4; i++)
-        for(int j = 0; j < 4; j++)
+    for(size_t i = 0; i < 4; i++)
+        for(size_t j = 0; j < 4; j++)
             Q(i, j) = gen(i, j);
 
-    const SelfAdjointEigenSolver<Matrix4d> decomp(Q);
-    const Vector4d lambda = (Array4d(decomp.eigenvalues().real()) * sequences[0].distance).exp();
-    const Matrix4d P = decomp.eigenvectors() * lambda.asDiagonal() * decomp.eigenvectors().inverse();
-    auto f = [](const double d) { return std::log(d); };
-    const Matrix4d logP = P.unaryExpr(f);
 
-    double expectedLL = logP.cwiseProduct(sequences[0].partitions[0].substitutions).sum();
-    double actualLL = starLogLike(sequences, model, rates, true);
+    const SelfAdjointEigenSolver<Matrix4d> decomp(Q);
+    std::cout << Q << '\n' << decomp.eigenvalues() << '\n' << decomp.eigenvectors() << '\n';
+    const std::vector<double> rates = rateDist->getCategories();
+    const std::vector<double> rateProbs = rateDist->getProbabilities();
+    std::vector<Matrix4d> pMatrices(rates.size());
+    for(size_t i = 0; i < rates.size(); i++) {
+        const Vector4d lambda = (Array4d(decomp.eigenvalues().real()) * sequences[0].distance * rates[i]).exp();
+        pMatrices[i] = decomp.eigenvectors() * lambda.asDiagonal() * decomp.eigenvectors().inverse();
+    }
+    auto f = [](const double d) { return std::log(d); };
+    for(size_t i = 0; i < rates.size(); i++) {
+        Eigen::Matrix4d r;
+        r.fill(std::log(rateProbs[i]));
+        pMatrices[i] = pMatrices[i].unaryExpr(f) + r;
+    }
+
+    // Sum over mixture
+    Matrix4d p = pMatrices[0];
+    for(size_t i = 1; i < rates.size(); i++) {
+        const Matrix4d& pi = pMatrices[i];
+        for(size_t j = 0; j < 4; j++) {
+            for(size_t k = 0; k < 4; k++) {
+                p(j, k) = fit_star::logSum(p(j, k), pi(j, k));
+            }
+        }
+    }
+
+    double expectedLL = p.cwiseProduct(sequences[0].partitions[0].substitutions).sum();
+    double actualLL = starLogLike(sequences, model, rateDist, true);
 
     EXPECT_NEAR(expectedLL, actualLL, 0.5);
 }
@@ -197,5 +219,8 @@ TEST(FitStar, gamma_variation) {
 
     double ll = 0.0;
     checkAgainstBpp(v, model, rates, ll);
-    // No eigen test here - only single category gamma supported
+    checkAgainstEigen(v, model, rates);
+    rates->setParameterValue("alpha", 0.10);
+    checkAgainstBpp(v, model, rates, ll);
+    checkAgainstEigen(v, model, rates);
 }
