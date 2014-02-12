@@ -160,9 +160,9 @@ int main(int argc, char* argv[])
             const std::string qname = bam1_qname(*it);
             if((count.has_name() && count.name() != qname) || no_group_by_qname) {
                 if(count.has_name() && count.partition_size()) {
-                    if(count.name() != qname)
-                        written++;
                     writeDelimitedItem(*outptr, count);
+                    if(count.name() != qname) // new record
+                        written++;
                 }
                 count.Clear();
             }
@@ -187,10 +187,12 @@ int main(int argc, char* argv[])
 
             mutationCountOfSequence(count, *it, ref, no_ambiguous, target_name, by_codon);
         }
-        assert(count.has_name() && "Name not set");
-        assert(count.partition_size() > 0 && "No partitions");
-        writeDelimitedItem(*outptr, count);
-        written++;
+        if(maxRecords <= 0 || written < maxRecords) {
+            assert(count.has_name() && "Name not set");
+            assert(count.partition_size() > 0 && "No partitions");
+            writeDelimitedItem(*outptr, count);
+            written++;
+        }
     }
 
     fai_destroy(fidx);
