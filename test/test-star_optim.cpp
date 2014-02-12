@@ -103,7 +103,15 @@ Eigen::VectorXd bppToEigen(const std::vector<double>& v) {
     return result;
 }
 
-// Equivalent of checkAgainstBpp, but using fixed root
+template<typename Scalar>
+struct LogSumBinaryOp
+{
+    EIGEN_EMPTY_STRUCT_CTOR(LogSumBinaryOp)
+    typedef Scalar result_type;
+    Scalar operator()(const Scalar x, const Scalar y) const { return fit_star::logSum(x, y); }
+};
+
+// Equivalent of checkAgainstBpp, but using fixed root, implemented in Eigen
 void checkAgainstEigen(std::vector<AlignedPair>& sequences,
                        std::unique_ptr<bpp::SubstitutionModel>& model,
                        std::unique_ptr<bpp::DiscreteDistribution>& rateDist)
@@ -113,66 +121,47 @@ void checkAgainstEigen(std::vector<AlignedPair>& sequences,
     ASSERT_EQ(1, sequences.size());
     ASSERT_EQ(1, sequences[0].partitions.size());
 
-    Matrix4d Q;
-    const bpp::Matrix<double>& gen = model->getGenerator();
-    for(size_t i = 0; i < 4; i++)
-        for(size_t j = 0; j < 4; j++)
-            Q(i, j) = gen(i, j);
+    //Matrix4d Q = bppToEigen(model->getGenerator());
 
-    const EigenSolver<Matrix4d> decomp(Q);
-    const Vector4d eval = decomp.eigenvalues().real();
-    const Matrix4d evec = decomp.eigenvectors().real();
-    const Matrix4d ievec = evec.inverse();
+    //const EigenSolver<Matrix4d> decomp(Q);
+    //const Vector4d eval = decomp.eigenvalues().real();
+    //const Matrix4d evec = decomp.eigenvectors().real();
+    //const Matrix4d ievec = evec.inverse();
 
     const Vector4d bppEval = bppToEigen(model->getEigenValues());
-    for(size_t i = 0; i < 4; i++) {
-        EXPECT_NEAR(bppEval[i], eval[i], 1e-5);
-    }
+    //for(size_t i = 0; i < 4; i++) {
+        //EXPECT_NEAR(bppEval[i], eval[i], 1e-5);
+    //}
 
     const Eigen::MatrixXd bppIEvec = bppToEigen(model->getRowLeftEigenVectors());
     const Eigen::MatrixXd bppEvec = bppToEigen(model->getColumnRightEigenVectors());
-    std::cout << "Eigen:\n" << ievec << '\n' 
-        << eval << '\n'
-        << evec << '\n';
-    std::cout << "Bpp:\n" << bppIEvec << '\n' 
-        << bppEval << '\n'
-        << bppEvec  << '\n';
-    for(size_t i = 0; i < 4; i++) {
-        for(size_t j = 0; j < 4; j++) {
-            EXPECT_NEAR(bppEvec(i, j), evec(i, j), 1e-5);
-            EXPECT_NEAR(bppIEvec(i, j), ievec(i, j), 1e-5);
-        }
-    }
 
     const std::vector<double> rates = rateDist->getCategories();
     const std::vector<double> rateProbs = rateDist->getProbabilities();
     std::vector<Matrix4d> pMatrices(rates.size());
     for(size_t i = 0; i < rates.size(); i++) {
-        const Vector4d lambda = (Array4d(eval) * sequences[0].distance * rates[i]).exp();
-        pMatrices[i] = ievec * lambda.asDiagonal() * evec;
+        const Vector4d lambda = (Array4d(bppEval) * sequences[0].distance * rates[i]).exp();
+        pMatrices[i] = bppEvec * lambda.asDiagonal() * bppIEvec;
     }
     auto f = [](const double d) { return std::log(d); };
     for(size_t i = 0; i < rates.size(); i++) {
-        Eigen::Matrix4d r;
-        r.fill(std::log(rateProbs[i]));
-        pMatrices[i] = pMatrices[i].unaryExpr(f) + r;
+        pMatrices[i] = pMatrices[i].unaryExpr(f);
+        if(rates.size() > 1) {
+            Eigen::Matrix4d r = Eigen::Matrix4d::Ones() * std::log(rateProbs[i]);
+            pMatrices[i] += r;
+        }
     }
 
     // Sum over mixture
     Matrix4d p = pMatrices[0];
     for(size_t i = 1; i < rates.size(); i++) {
-        const Matrix4d& pi = pMatrices[i];
-        for(size_t j = 0; j < 4; j++) {
-            for(size_t k = 0; k < 4; k++) {
-                p(j, k) = fit_star::logSum(p(j, k), pi(j, k));
-            }
-        }
+        p = p.binaryExpr(pMatrices[i], LogSumBinaryOp<double>());
     }
 
     double expectedLL = p.cwiseProduct(sequences[0].partitions[0].substitutions).sum();
     double actualLL = starLogLike(sequences, model, rateDist, true);
 
-    EXPECT_NEAR(expectedLL, actualLL, 0.5);
+    EXPECT_NEAR(expectedLL, actualLL, 1e-5);
 }
 
 TEST(FitStar, simple_jc) {
