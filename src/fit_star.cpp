@@ -154,7 +154,7 @@ void writeResults(std::ostream& out,
     // State names
     Json::Value states(Json::arrayValue);
     const bpp::Alphabet* alph = models.begin()->second.model->getAlphabet();
-    for(int i = 0; i < alph->getSize(); i++)
+    for(size_t i = 0; i < alph->getSize(); i++)
         states.append(alph->getState(i).getLetter());
     root["states"] = states;
 
