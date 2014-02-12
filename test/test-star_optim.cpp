@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "star_tree_optimizer.hpp"
 #include "aligned_pair.hpp"
+#include "log_tricks.hpp"
 
 #include <libhmsbeagle/beagle.h>
 
@@ -40,7 +41,7 @@ bpp::VectorSiteContainer createSites(const AlignedPair& sequence)
     }
 
     bpp::VectorSiteContainer result(&DNA);
-    for(int i = 0; i < 2; i++)
+    for(size_t i = 0; i < 2; i++)
         result.addSequence(bpp::BasicSequence(names[i], seqs[i], &DNA));
 
     return result;
@@ -87,33 +88,80 @@ void checkAgainstBpp(std::vector<AlignedPair>& sequences,
     logL = starLL;
 }
 
-// Equivalent of checkAgainstBpp, but using fixed root
+Eigen::MatrixXd bppToEigen(const bpp::Matrix<double>& m) {
+    Eigen::MatrixXd result(m.getNumberOfRows(), m.getNumberOfColumns());
+    for(size_t i = 0; i < m.getNumberOfRows(); i++)
+        for(size_t j = 0; j < m.getNumberOfColumns(); j++)
+            result(i, j) = m(i, j);
+    return result;
+}
+
+Eigen::VectorXd bppToEigen(const std::vector<double>& v) {
+    Eigen::VectorXd result(v.size());
+    for(size_t i = 0; i < v.size(); i++)
+        result[i] = v[i];
+    return result;
+}
+
+template<typename Scalar>
+struct LogSumBinaryOp
+{
+    EIGEN_EMPTY_STRUCT_CTOR(LogSumBinaryOp)
+    typedef Scalar result_type;
+    Scalar operator()(const Scalar x, const Scalar y) const { return fit_star::logSum(x, y); }
+};
+
+// Equivalent of checkAgainstBpp, but using fixed root, implemented in Eigen
 void checkAgainstEigen(std::vector<AlignedPair>& sequences,
                        std::unique_ptr<bpp::SubstitutionModel>& model,
-                       std::unique_ptr<bpp::DiscreteDistribution>& rates)
+                       std::unique_ptr<bpp::DiscreteDistribution>& rateDist)
 {
     using namespace Eigen;
 
     ASSERT_EQ(1, sequences.size());
     ASSERT_EQ(1, sequences[0].partitions.size());
-    ASSERT_EQ(1, rates->getNumberOfCategories());
 
-    Matrix4d Q;
-    auto& gen = model->getGenerator();
-    for(int i = 0; i < 4; i++)
-        for(int j = 0; j < 4; j++)
-            Q(i, j) = gen(i, j);
+    //Matrix4d Q = bppToEigen(model->getGenerator());
 
-    const SelfAdjointEigenSolver<Matrix4d> decomp(Q);
-    const Vector4d lambda = (Array4d(decomp.eigenvalues().real()) * sequences[0].distance).exp();
-    const Matrix4d P = decomp.eigenvectors() * lambda.asDiagonal() * decomp.eigenvectors().inverse();
+    //const EigenSolver<Matrix4d> decomp(Q);
+    //const Vector4d eval = decomp.eigenvalues().real();
+    //const Matrix4d evec = decomp.eigenvectors().real();
+    //const Matrix4d ievec = evec.inverse();
+
+    const Vector4d bppEval = bppToEigen(model->getEigenValues());
+    //for(size_t i = 0; i < 4; i++) {
+        //EXPECT_NEAR(bppEval[i], eval[i], 1e-5);
+    //}
+
+    const Eigen::MatrixXd bppIEvec = bppToEigen(model->getRowLeftEigenVectors());
+    const Eigen::MatrixXd bppEvec = bppToEigen(model->getColumnRightEigenVectors());
+
+    const std::vector<double> rates = rateDist->getCategories();
+    const std::vector<double> rateProbs = rateDist->getProbabilities();
+    std::vector<Matrix4d> pMatrices(rates.size());
+    for(size_t i = 0; i < rates.size(); i++) {
+        const Vector4d lambda = (Array4d(bppEval) * sequences[0].distance * rates[i]).exp();
+        pMatrices[i] = bppEvec * lambda.asDiagonal() * bppIEvec;
+    }
     auto f = [](const double d) { return std::log(d); };
-    const Matrix4d logP = P.unaryExpr(f);
+    for(size_t i = 0; i < rates.size(); i++) {
+        pMatrices[i] = pMatrices[i].unaryExpr(f);
+        if(rates.size() > 1) {
+            Eigen::Matrix4d r = Eigen::Matrix4d::Ones() * std::log(rateProbs[i]);
+            pMatrices[i] += r;
+        }
+    }
 
-    double expectedLL = logP.cwiseProduct(sequences[0].partitions[0].substitutions).sum();
-    double actualLL = starLogLike(sequences, model, rates, true);
+    // Sum over mixture
+    Matrix4d p = pMatrices[0];
+    for(size_t i = 1; i < rates.size(); i++) {
+        p = p.binaryExpr(pMatrices[i], LogSumBinaryOp<double>());
+    }
 
-    EXPECT_NEAR(expectedLL, actualLL, 0.5);
+    double expectedLL = p.cwiseProduct(sequences[0].partitions[0].substitutions).sum();
+    double actualLL = starLogLike(sequences, model, rateDist, true);
+
+    EXPECT_NEAR(expectedLL, actualLL, 1e-5);
 }
 
 TEST(FitStar, simple_jc) {
@@ -197,5 +245,8 @@ TEST(FitStar, gamma_variation) {
 
     double ll = 0.0;
     checkAgainstBpp(v, model, rates, ll);
-    // No eigen test here - only single category gamma supported
+    checkAgainstEigen(v, model, rates);
+    rates->setParameterValue("alpha", 0.10);
+    checkAgainstBpp(v, model, rates, ll);
+    checkAgainstEigen(v, model, rates);
 }
