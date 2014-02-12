@@ -154,7 +154,7 @@ int main(int argc, char* argv[])
         std::vector<std::string> targetBases(in.fp->header->n_targets);
         std::vector<int> targetLen(in.fp->header->n_targets);
         for(SamIterator it(in.fp, record.record), end; it != end; it++) {
-            if(maxRecords > 0 && written > maxRecords)
+            if(maxRecords > 0 && written >= maxRecords)
                 break;
 
             const std::string qname = bam1_qname(*it);
