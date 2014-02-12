@@ -137,7 +137,7 @@ int main(int argc, char* argv[])
     faidx_t* fidx = fai_load(fastaPath.c_str());
     assert(fidx != NULL && "Failed to load FASTA index");
 
-    size_t processed = 0;
+    size_t written = 0;
 
     std::fstream out(outputPath, std::ios::out | std::ios::trunc | std::ios::binary);
     protoio::OstreamOutputStream rawOut(&out);
@@ -154,13 +154,16 @@ int main(int argc, char* argv[])
         std::vector<std::string> targetBases(in.fp->header->n_targets);
         std::vector<int> targetLen(in.fp->header->n_targets);
         for(SamIterator it(in.fp, record.record), end; it != end; it++) {
-            if(maxRecords > 0 && processed++ > maxRecords)
+            if(maxRecords > 0 && written > maxRecords)
                 break;
 
             const std::string qname = bam1_qname(*it);
             if((count.has_name() && count.name() != qname) || no_group_by_qname) {
-                if(count.has_name() && count.partition_size())
+                if(count.has_name() && count.partition_size()) {
+                    if(count.name() != qname)
+                        written++;
                     writeDelimitedItem(*outptr, count);
+                }
                 count.Clear();
             }
 
@@ -187,6 +190,7 @@ int main(int argc, char* argv[])
         assert(count.has_name() && "Name not set");
         assert(count.partition_size() > 0 && "No partitions");
         writeDelimitedItem(*outptr, count);
+        written++;
     }
 
     fai_destroy(fidx);
