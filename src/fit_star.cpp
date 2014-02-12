@@ -150,6 +150,14 @@ void writeResults(std::ostream& out,
     for(size_t i = 0; i < pl.size(); i++) {
         paramNode[pl[i].getName()] = pl[i].getValue();
     }
+
+    // State names
+    Json::Value states(Json::arrayValue);
+    const bpp::Alphabet* alph = models.begin()->second.model->getAlphabet();
+    for(int i = 0; i < alph->getSize(); i++)
+        states.append(alph->getState(i).getLetter());
+    root["states"] = states;
+
     root["independentParameters"] = paramNode;
     root["degreesOfFreedom"] = static_cast<int>(pl.size() + sequences.size());
     paramNode = Json::Value(Json::objectValue);
