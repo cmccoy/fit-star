@@ -95,6 +95,10 @@ void blitMatrixToArray(double* arr, const bpp::Matrix<double>& matrix)
 /// \brief calculate the likelihood of a collection of substitutions using an initialized BEAGLE instance.
 double pairLogLikelihood(const int beagleInstance, const Eigen::Matrix4d& substitutions, const double distance)
 {
+    // Shortcut
+    if (substitutions.sum() < 1)
+        return 0.0;
+
     const size_t nStates = 4;
     std::vector<double> patternWeights;
     patternWeights.reserve(nStates * nStates);
@@ -146,6 +150,10 @@ double pairLogLikelihood(const int beagleInstance, const Eigen::Matrix4d& substi
                      1,
                      &logLike);
     beagleCheck(returnCode, "rootLogLike");
+    if (std::isinf(logLike) || std::isnan(logLike)) {
+        LOG_FATAL(log) << "Log likelihood: " << logLike << '\n' << substitutions << "\nd=" << distance << '\n';
+        throw std::runtime_error("Invalid log likelihood: " + std::to_string(logLike));
+    }
     return logLike;
 }
 
