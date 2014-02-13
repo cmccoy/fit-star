@@ -230,7 +230,7 @@ void writeResults(std::ostream& out,
             }
         }
         modelNode["Q"] = qNode;
-        //modelNode["S"] = sNode;
+        modelNode["S"] = sNode;
         modelNode["Pmean"] = pNode;
         partitionsNode.append(modelNode);
     }
