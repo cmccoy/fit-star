@@ -36,8 +36,3 @@ add_subdirectory(src)
 # Testing
 add_subdirectory(lib/gtest-1.7.0)
 add_subdirectory(test)
-
-#get_cmake_property(_variableNames VARIABLES)
-#foreach (_variableName ${_variableNames})
-    #message(STATUS "${_variableName}=${${_variableName}}")
-#endforeach()
