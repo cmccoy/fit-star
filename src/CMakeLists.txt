@@ -4,7 +4,7 @@ PROTOBUF_GENERATE_CPP(ProtoSources ProtoHeaders mutationio.proto)
 
 # BEAGLE
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(HMS_BEAGLE hmsbeagle-2 REQUIRED)
+pkg_check_modules(HMS_BEAGLE hmsbeagle-1 REQUIRED)
 include_directories(${HMS_BEAGLE_INCLUDE_DIRS})
 link_directories(${HMS_BEAGLE_LIBRARY_DIRS})
 
