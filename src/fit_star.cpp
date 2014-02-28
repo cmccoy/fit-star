@@ -158,6 +158,15 @@ void writeResults(std::ostream& out,
         states.append(alph->getState(i).getLetter());
     root["states"] = states;
 
+    // Aligned bases
+    double alignedBases = 0.0;
+    for(const fit_star::AlignedPair &s : sequences) {
+        for (const fit_star::Partition & p: s.partitions) {
+            alignedBases += p.substitutions.sum();
+        }
+    }
+    root["alignedBases"] = alignedBases;
+
     root["independentParameters"] = paramNode;
     root["degreesOfFreedom"] = static_cast<int>(pl.size() + sequences.size());
     paramNode = Json::Value(Json::objectValue);
