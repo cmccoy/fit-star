@@ -8,6 +8,8 @@ Additionally, it assumes that each sequence evolved independently from the known
 This is unusual.
 For inferring full phylogenies [RAxML](http://www.exelixis-lab.org/), [PhyML](http://www.atgc-montpellier.fr/phyml/), or [FastTree](http://www.microbesonline.org/fasttree/) will be more useful.
 
+An application to B cell receptor sequences is described in [our preprint on arXiv](http://arxiv.org/abs/1403.3066).
+
 # Requirements
 
 * libprotobuf-2.4.1-dev
