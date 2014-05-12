@@ -39,12 +39,12 @@ inline int nt16ToIdx(const int b)
 void mutationCountOfSequence(mutationio::MutationCount& count,
                              const bam1_t* b,
                              const std::string& ref,
-                             const bool no_ambiguous,
+                             const bool noAmbiguous,
                              const std::string partition_name = "",
-                             const bool by_codon = false)
+                             const bool byCodon = false)
 {
     assert(b != nullptr && "null bam record");
-    std::vector<std::vector<int>> partitions(by_codon ? 3 : 1);
+    std::vector<std::vector<int>> partitions(byCodon ? 3 : 1);
     for(std::vector<int>& v : partitions)
         v.resize(16);
 
@@ -52,7 +52,7 @@ void mutationCountOfSequence(mutationio::MutationCount& count,
     const uint8_t* seq = bam1_seq(b);
     uint32_t qi = 0, ri = b->core.pos;
     const int8_t* bq = reinterpret_cast<int8_t*>(bam_aux_get(b, "bq"));
-    if(no_ambiguous) {
+    if(noAmbiguous) {
         assert(bq != NULL && "No bq tag");
     }
     for(uint32_t cidx = 0; cidx < b->core.n_cigar; cidx++) {
@@ -62,8 +62,8 @@ void mutationCountOfSequence(mutationio::MutationCount& count,
             for(uint32_t i = 0; i < clen; i++) {
                 const int qb = nt16ToIdx(bam1_seqi(seq, qi + i)),
                           rb = nt16ToIdx(bam_nt16_table[static_cast<int>(ref[ri + i])]);
-                if(qb < 4 && rb < 4 && (!no_ambiguous || bq[qi + i] % 100 == 0)) {
-                    partitions[by_codon ? (ri + i) % 3 : 0][(rb * 4) + qb] += 1;
+                if(qb < 4 && rb < 4 && (!noAmbiguous || bq[qi + i] % 100 == 0)) {
+                    partitions[byCodon ? (ri + i) % 3 : 0][(rb * 4) + qb] += 1;
                 }
             }
         }
@@ -101,9 +101,9 @@ int main(int argc, char* argv[])
     std::string fastaPath, outputPath;
     std::vector<std::string> bamPaths;
 
-    bool no_ambiguous = false;
-    bool by_codon = false;
-    bool no_group_by_qname = false;
+    bool noAmbiguous = false;
+    bool byCodon = false;
+    bool noGroupByQName = false;
     size_t maxRecords = 0;
     int prefix = 4;
 
@@ -111,13 +111,13 @@ int main(int argc, char* argv[])
     desc.add_options()
     ("help,h", "Produce help message")
     ("version,v", "Print version")
-    ("no-ambiguous", po::bool_switch(&no_ambiguous), "Do not include ambiguous sites")
-    ("by-codon", po::bool_switch(&by_codon), "Partition by codon")
+    ("no-ambiguous", po::bool_switch(&noAmbiguous), "Do not include ambiguous sites")
+    ("by-codon", po::bool_switch(&byCodon), "Partition by codon")
     ("max-records,n", po::value(&maxRecords), "Maximum number of records to parse")
     ("prefix", po::value(&prefix), "Prefix of reference sequence to use as group (default: 4; use -1 for full string)")
     ("input-fasta,f", po::value<std::string>(&fastaPath)->required(), "Path to (indexed) FASTA file")
     ("input-bam,i", po::value(&bamPaths)->composing()->required(), "Path to BAM(s)")
-    ("no-group", po::bool_switch(&no_group_by_qname), "Do *not* group records by name")
+    ("no-group", po::bool_switch(&noGroupByQName), "Do *not* group records by name")
     ("output-file,o", po::value<std::string>(&outputPath)->required(), "Path to output file");
 
     po::variables_map vm;
@@ -158,7 +158,7 @@ int main(int argc, char* argv[])
                 break;
 
             const std::string qname = bam1_qname(*it);
-            if((count.has_name() && count.name() != qname) || no_group_by_qname) {
+            if((count.has_name() && count.name() != qname) || noGroupByQName) {
                 if(count.has_name() && count.partition_size()) {
                     writeDelimitedItem(*outptr, count);
                     if(count.name() != qname) // new record
@@ -171,9 +171,9 @@ int main(int argc, char* argv[])
                 count.set_name(qname);
                 count.set_distance(0.1);
             }
-            std::string target_name = in.fp->header->target_name[(*it)->core.tid];
+            std::string targetName = in.fp->header->target_name[(*it)->core.tid];
             if(targetBases[(*it)->core.tid].empty()) {
-                char* ref = fai_fetch(fidx, target_name.c_str(), &targetLen[(*it)->core.tid]);
+                char* ref = fai_fetch(fidx, targetName.c_str(), &targetLen[(*it)->core.tid]);
                 assert(ref != nullptr && "Missing reference");
                 targetBases[(*it)->core.tid] = ref;
                 free(ref);
@@ -183,9 +183,9 @@ int main(int argc, char* argv[])
 
             // Assign a group based on germline prefix
             if(prefix >= 0)
-                target_name.resize(prefix);
+                targetName.resize(prefix);
 
-            mutationCountOfSequence(count, *it, ref, no_ambiguous, target_name, by_codon);
+            mutationCountOfSequence(count, *it, ref, noAmbiguous, targetName, byCodon);
         }
         if(maxRecords <= 0 || written < maxRecords) {
             assert(count.has_name() && "Name not set");
