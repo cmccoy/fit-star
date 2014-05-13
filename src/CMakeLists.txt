@@ -21,7 +21,8 @@ endif()
 
 add_library(libstaropt
             mutationio.pb.cc
-            star_tree_optimizer.cpp)
+            star_tree_optimizer.cpp
+            kmer_model.cpp)
 set_target_properties(libstaropt PROPERTIES OUTPUT_NAME staropt)
 target_link_libraries(libstaropt
   protobuf
@@ -41,7 +42,7 @@ target_link_libraries(build-mutation-matrices libstaropt)
 target_link_libraries(build-mutation-matrices boost-programoptions)
 
 # kgt1
-add_executable(fit-kgt1 fit_kgt1.cpp)
+add_executable(fit-kgt1 fit_kgt1.cpp kmer_model.cpp)
 target_link_libraries(fit-kgt1 libstaropt)
 target_link_libraries(fit-kgt1 boost-programoptions)
 

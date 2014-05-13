@@ -73,7 +73,8 @@ Eigen::MatrixXd mutationMatrixOfSequence(const bam1_t* b,
                     rword += ref[ri + i + j];
                 }
 
-                mutations(alphabet.charToInt(rword), alphabet.charToInt(qword)) += 1;
+                if(!alphabet.isUnresolved(rword) && !alphabet.isUnresolved(qword))
+                    mutations(alphabet.charToInt(rword), alphabet.charToInt(qword)) += 1;
             }
         }
         if(consumes & 0x1) // Consumes query
@@ -158,8 +159,6 @@ int main(int argc, char* argv[])
             const size_t sequenceFrame = (*it)->core.pos % wordSize;
 
             const Eigen::MatrixXd mutations = mutationMatrixOfSequence(*it, ref, wordSize, sequenceFrame, alphabet);
-            std::cerr << mutations << '\n';
-            break;
         }
 
     }

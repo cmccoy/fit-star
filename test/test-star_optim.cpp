@@ -17,13 +17,11 @@
 #include <Bpp/Phyl/Model.all>
 #include <Bpp/Phyl/TreeTemplate.h>
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
-#include <Bpp/Seq/Alphabet/DNA.h>
 #include <Bpp/Seq/Container/VectorSiteContainer.h>
 #include <Bpp/Seq/Sequence.h>
 
 using namespace fit_star;
 
-bpp::DNA DNA;
 
 bpp::VectorSiteContainer createSites(const AlignedPair& sequence,
                                      const bpp::Alphabet *alphabet = &bpp::AlphabetTools::DNA_ALPHABET)
@@ -113,6 +111,15 @@ struct LogSumBinaryOp
     Scalar operator()(const Scalar x, const Scalar y) const { return fit_star::logSum(x, y); }
 };
 
+
+template <typename T>
+std::ostream& operator<<(ostream& o, const vector<T>& v) {
+    std::copy(v.begin(), v.end(), std::ostream_iterator<T>(o,","));
+
+    return o; // Edited
+}
+
+
 // Equivalent of checkAgainstBpp, but using fixed root, implemented in Eigen
 void checkAgainstEigen(std::vector<AlignedPair>& sequences,
                        std::unique_ptr<bpp::SubstitutionModel>& model,
@@ -159,8 +166,7 @@ void checkAgainstEigen(std::vector<AlignedPair>& sequences,
 }
 
 TEST(FitStar, simple_jc) {
-    bpp::DNA dna;
-    std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
+    std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&bpp::AlphabetTools::DNA_ALPHABET));
     bpp::RateDistributionFactory fac(4);
     std::unique_ptr<bpp::DiscreteDistribution> rates(fac.createDiscreteDistribution("Constant"));
 
@@ -212,8 +218,7 @@ TEST(FitStar, known_distance) {
 
 
 TEST(FitStar, gamma_variation) {
-    bpp::DNA dna;
-    std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&dna));
+    std::unique_ptr<bpp::SubstitutionModel> model(new bpp::GTR(&bpp::AlphabetTools::DNA_ALPHABET));
     bpp::RateDistributionFactory fac(4);
     std::unique_ptr<bpp::DiscreteDistribution> rates(fac.createDiscreteDistribution("Gamma"));
     rates->setParameterValue("alpha", 1.2);
