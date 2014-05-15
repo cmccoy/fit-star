@@ -59,18 +59,15 @@ void loadAlignedPairsFromFile(const std::string& file_path, std::vector<fit_star
         sequence.partitions.resize(m.partition_size());
         for(size_t p = 0; p < sequence.partitions.size(); p++) {
             const mutationio::Partition& partition = m.partition(p);
+            assert(partition.substitution_size() == 16 && "fit-star expects a DNA model.");
             sequence.partitions[p].name = partition.name();
+            sequence.partitions[p].substitutions.resize(4, 4);
             sequence.partitions[p].substitutions.fill(0);
-            assert(partition.substitution_size() == 16 && "Unexpected substitution count");
             for(size_t i = 0; i < 4; i++)
                 for(size_t j = 0; j < 4; j++)
                     sequence.partitions[p].substitutions(i, j) = partition.substitution(4 * i + j);
         }
 
-        // TODO: use mutation count
-        //double d = 1 - sequence.substitutions.diagonal().sum() / sequence.substitutions.sum();
-        //if(d == 0)
-        //d = 1e-3;
         sequence.distance = 0.1;
 
         dest.push_back(std::move(sequence));

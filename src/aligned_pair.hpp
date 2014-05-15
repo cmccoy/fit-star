@@ -9,7 +9,7 @@ namespace fit_star
 
 struct Partition {
     std::string name;
-    Eigen::Matrix4d substitutions;
+    Eigen::MatrixXd substitutions;
 };
 
 struct AlignedPair {
