@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
 #include <cassert>
+#include <stdexcept>
 
 namespace fit_star {
 
@@ -57,8 +58,6 @@ void KmerSubstitutionModel::updateMatrices()
     for(size_t i = 0; i < nbStates; i++) {
         eigenValues_[i] = eval(i);
         for(size_t j = 0; j < nbStates; j++) {
-            // TODO: check order
-            std::clog << "Check eigenVector order." << std::endl;
             rightEigenVectors_(i, j) = evec(i, j);
             leftEigenVectors_(i, j) = ievec(i, j);
         }
@@ -75,6 +74,10 @@ void KmerSubstitutionModel::completeMatrices()
 
     size_t i, j;
     const size_t nbStates = getNumberOfStates();
+    if(!dynamic_cast<const bpp::WordAlphabet*>(alphabet_)) {
+        throw std::runtime_error("Expected word alphabet.");
+    }
+
     const bpp::WordAlphabet* alpha = reinterpret_cast<const bpp::WordAlphabet*>(alphabet_);
 
     for (i = 0; i < nbStates; i++) {

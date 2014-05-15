@@ -9,6 +9,7 @@
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
 
+#include <Bpp/Numeric/VectorTools.h>
 #include <Bpp/Phyl/Distance/DistanceEstimation.h>
 #include <Bpp/Phyl/Likelihood/DiscreteRatesAcrossSitesTreeLikelihood.h>
 #include <Bpp/Phyl/Likelihood/RHomogeneousTreeLikelihood.h>
@@ -19,28 +20,6 @@
 #include <Bpp/Seq/Sequence.h>
 
 using namespace fit_star;
-
-TEST(KmerModel, silly) {
-    //bpp::GTR gtr(&bpp::AlphabetTools::DNA_ALPHABET);
-    //std::vector<bpp::SubstitutionModel*> v (2, new bpp::GTR(&bpp::AlphabetTools::DNA_ALPHABET));
-    //KmerSubstitutionModel model(v);
-    //bpp::WordSubstitutionModel model(v);
-    //bpp::GTR model(&bpp::AlphabetTools::DNA_ALPHABET);
-    KmerSubstitutionModel model(new bpp::GTR(&bpp::AlphabetTools::DNA_ALPHABET), 2);
-    const auto& m = model.getPij_t(0.1);
-
-    const bpp::Matrix<double>& gen = model.getGenerator();
-    const bpp::Matrix<double>& exch = model.getExchangeabilityMatrix();
-    //std::clog << "freq\t" << bpp::VectorTools::paste(model.getFrequencies()) << '\n';
-    //std::clog << "gen\t";
-    //bpp::MatrixTools::print(gen, std::clog);
-    //std::clog << "exch\t";
-    //bpp::MatrixTools::print(exch, std::clog);
-    //std::clog << "p0.1\t";
-    //bpp::MatrixTools::print(m, std::clog);
-    //std::clog << "rowLeftEigen\t";
-    //bpp::MatrixTools::print(model.getRowLeftEigenVectors(), std::clog);
-}
 
 double testSimpleLikelihood(bpp::SubstitutionModel* model) {
     bpp::BasicSequence first("A", "ACGGTACCGTAAC", model->getAlphabet()),
@@ -74,7 +53,7 @@ TEST(KmerModel, single_nucleotide_equals_gtr) {
 
     EXPECT_NEAR(testSimpleLikelihood(&gtrModel), testSimpleLikelihood(&oneWordModel), 1e-3) << "Likelihood calculations do not match.";
 
-    // Extract Q matrices
+    // Extract Q, exchangeability matrices
     const bpp::Matrix<double>& gtrQ = gtrModel.getGenerator();
     const bpp::Matrix<double>& oneWordQ = oneWordModel.getGenerator();
     const bpp::Matrix<double>& gtrExch = gtrModel.getExchangeabilityMatrix();
@@ -88,4 +67,39 @@ TEST(KmerModel, single_nucleotide_equals_gtr) {
             EXPECT_NEAR(gtrExch(i, j), oneWordExch(i, j), 1e-4);
         }
     }
+
+    // Next: eigenvectors, eigenvalues
+    std::vector<double> gtrEval = gtrModel.getEigenValues(),
+        oneWordEval = oneWordModel.getEigenValues();
+
+    const bpp::Matrix<double>& gtrLeft = gtrModel.getRowLeftEigenVectors(),
+          &wordLeft = oneWordModel.getRowLeftEigenVectors(),
+          &gtrRight = gtrModel.getColumnRightEigenVectors(),
+          &wordRight = oneWordModel.getColumnRightEigenVectors();
+
+    bpp::RowMatrix<double> pGTR(gtrLeft.getNumberOfRows(), gtrLeft.getNumberOfColumns()),
+        pWord(gtrLeft.getNumberOfRows(), gtrLeft.getNumberOfColumns());
+
+    bpp::MatrixTools::mult(gtrRight, bpp::VectorTools::exp(bpp::operator*(gtrEval, 0.1)), gtrLeft, pGTR);
+    bpp::MatrixTools::mult(wordRight, bpp::VectorTools::exp(bpp::operator*(oneWordEval, 0.1)), wordLeft, pWord);
+
+    for(size_t i = 0; i < gtrQ.getNumberOfRows(); i++) {
+        for(size_t j = 0; j < gtrQ.getNumberOfColumns(); j++) {
+            EXPECT_NEAR(pGTR(i, j), pWord(i, j), 1e-4);
+        }
+    }
+
+    bpp::MatrixTools::mult(gtrRight, bpp::VectorTools::exp(bpp::operator*(gtrEval, 0.001)), gtrLeft, pGTR);
+    bpp::MatrixTools::mult(wordRight, bpp::VectorTools::exp(bpp::operator*(oneWordEval, 0.001)), wordLeft, pWord);
+
+    for(size_t i = 0; i < gtrQ.getNumberOfRows(); i++) {
+        for(size_t j = 0; j < gtrQ.getNumberOfColumns(); j++) {
+            EXPECT_NEAR(pGTR(i, j), pWord(i, j), 1e-4);
+        }
+    }
+
+    std::sort(gtrEval.begin(), gtrEval.end());
+    std::sort(oneWordEval.begin(), oneWordEval.end());
+    for(size_t i = 0; i < gtrEval.size(); i++)
+        EXPECT_NEAR(gtrEval[i], oneWordEval[i], 1e-4);
 }
