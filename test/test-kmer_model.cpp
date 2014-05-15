@@ -42,7 +42,7 @@ TEST(KmerModel, silly) {
     //bpp::MatrixTools::print(model.getRowLeftEigenVectors(), std::clog);
 }
 
-double testHelper(bpp::SubstitutionModel* model) {
+double testSimpleLikelihood(bpp::SubstitutionModel* model) {
     bpp::BasicSequence first("A", "ACGGTACCGTAAC", model->getAlphabet()),
                       second("B", "ACTTTGGCGTCAT", model->getAlphabet());
     bpp::VectorSiteContainer sites(model->getAlphabet());
@@ -72,17 +72,20 @@ TEST(KmerModel, single_nucleotide_equals_gtr) {
     bpp::GTR gtrModel(&bpp::AlphabetTools::DNA_ALPHABET);
     KmerSubstitutionModel oneWordModel(gtrModel.clone(), 1);
 
-    EXPECT_NEAR(testHelper(&gtrModel), testHelper(&oneWordModel), 1e-3) << "Likelihood calculations do not match.";
+    EXPECT_NEAR(testSimpleLikelihood(&gtrModel), testSimpleLikelihood(&oneWordModel), 1e-3) << "Likelihood calculations do not match.";
 
     // Extract Q matrices
     const bpp::Matrix<double>& gtrQ = gtrModel.getGenerator();
     const bpp::Matrix<double>& oneWordQ = oneWordModel.getGenerator();
+    const bpp::Matrix<double>& gtrExch = gtrModel.getExchangeabilityMatrix();
+    const bpp::Matrix<double>& oneWordExch = oneWordModel.getExchangeabilityMatrix();
 
     EXPECT_EQ(gtrQ.getNumberOfRows(), oneWordQ.getNumberOfRows());
     EXPECT_EQ(gtrQ.getNumberOfColumns(), oneWordQ.getNumberOfColumns());
     for(size_t i = 0; i < gtrQ.getNumberOfRows(); i++) {
         for(size_t j = 0; j < gtrQ.getNumberOfColumns(); j++) {
-            EXPECT_NEAR(gtrQ(i, j), oneWordQ(i, j), 1e-3);
+            EXPECT_NEAR(gtrQ(i, j), oneWordQ(i, j), 1e-4);
+            EXPECT_NEAR(gtrExch(i, j), oneWordExch(i, j), 1e-4);
         }
     }
 }
