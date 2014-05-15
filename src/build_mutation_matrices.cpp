@@ -24,11 +24,15 @@
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
 #include <Bpp/Seq/Alphabet/WordAlphabet.h>
 
+#include <cpplog.hpp>
 
 namespace po = boost::program_options;
 namespace protoio = google::protobuf::io;
 
-using namespace fit_star;
+
+namespace fit_star {
+
+cpplog::StdErrLogger log;
 
 /// Next position for a sequence
 size_t offset(const size_t pos, const size_t sequenceFrame, const size_t wordSize) {
@@ -128,10 +132,8 @@ int usage(po::options_description& desc)
 }
 
 
-int main(int argc, char* argv[])
+int run_main(int argc, char* argv[])
 {
-    GOOGLE_PROTOBUF_VERIFY_VERSION;
-
     std::string fastaPath, outputPath;
     std::vector<std::string> bamPaths;
 
@@ -169,8 +171,11 @@ int main(int argc, char* argv[])
 
     po::notify(vm);
 
-    faidx_t* fidx = fai_load(fastaPath.c_str());
-    assert(fidx != NULL && "Failed to load FASTA index");
+    FastaIndex fidx(fastaPath);
+    if(fidx.index == nullptr) {
+        LOG_FATAL(log) << "Failed to load index for " << fastaPath;
+        return 1;
+    }
 
     size_t written = 0;
 
@@ -182,7 +187,10 @@ int main(int argc, char* argv[])
         outptr = &zipOut;
 
     std::unique_ptr<bpp::Alphabet> alphabet;
-    if(wordSize == 1)
+    if(wordSize == 0) {
+        LOG_FATAL(log) << "Invalid alphabet size: " << wordSize;
+        return 1;
+    } if(wordSize == 1)
         alphabet.reset(new bpp::DNA());
     else {
         assert(wordSize > 0);
@@ -216,8 +224,11 @@ int main(int argc, char* argv[])
             }
             std::string targetName = in.fp->header->target_name[(*it)->core.tid];
             if(targetBases[(*it)->core.tid].empty()) {
-                char* ref = fai_fetch(fidx, targetName.c_str(), &targetLen[(*it)->core.tid]);
-                assert(ref != nullptr && "Missing reference");
+                char* ref = fai_fetch(fidx.index, targetName.c_str(), &targetLen[(*it)->core.tid]);
+                if(ref == nullptr) {
+                    LOG_FATAL(log) << "Missing reference: " << targetName;
+                    return 1;
+                }
                 targetBases[(*it)->core.tid] = ref;
                 free(ref);
             }
@@ -239,11 +250,15 @@ int main(int argc, char* argv[])
             written++;
         }
     }
-
-    fai_destroy(fidx);
-
-    google::protobuf::ShutdownProtobufLibrary();
+    LOG_INFO(log) << "Wrote " << written << " records.";
 
     return 0;
 }
+}
 
+int main(int argc, char* argv[]) {
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+    int res = fit_star::run_main(argc, argv);
+    google::protobuf::ShutdownProtobufLibrary();
+    return res;
+}
