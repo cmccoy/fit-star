@@ -1,6 +1,9 @@
 # Protocol buffers
-include(FindProtobuf)
+find_package(Protobuf REQUIRED)
 PROTOBUF_GENERATE_CPP(ProtoSources ProtoHeaders mutationio.proto)
+
+# zlib
+find_package(ZLIB REQUIRED)
 
 # BEAGLE
 find_package(PkgConfig REQUIRED)
@@ -22,7 +25,7 @@ add_library(libstaropt
 set_target_properties(libstaropt PROPERTIES OUTPUT_NAME staropt)
 target_link_libraries(libstaropt
   protobuf
-  z
+  ${ZLIB_LIBRARIES}
   c
   pthread
   bam
