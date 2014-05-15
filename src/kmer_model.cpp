@@ -1,9 +1,26 @@
 #include "kmer_model.hpp"
 
 #include <Bpp/Seq/Alphabet/WordAlphabet.h>
+#include <Eigen/Dense>
+#include <Eigen/Eigenvalues>
 #include <cassert>
 
 namespace fit_star {
+
+Eigen::MatrixXd bppToEigen(const bpp::Matrix<double>& m) {
+    Eigen::MatrixXd result(m.getNumberOfRows(), m.getNumberOfColumns());
+    for(size_t i = 0; i < m.getNumberOfRows(); i++)
+        for(size_t j = 0; j < m.getNumberOfColumns(); j++)
+            result(i, j) = m(i, j);
+    return result;
+}
+
+Eigen::VectorXd bppToEigen(const std::vector<double>& v) {
+    Eigen::VectorXd result(v.size());
+    for(size_t i = 0; i < v.size(); i++)
+        result[i] = v[i];
+    return result;
+}
 
 KmerSubstitutionModel::KmerSubstitutionModel(const std::vector<bpp::SubstitutionModel*>& modelVector, const std::string& st) :
     bpp::AbstractParameterAliasable((st == "") ? "Word." : st),
@@ -30,6 +47,21 @@ void KmerSubstitutionModel::updateMatrices()
     bpp::WordSubstitutionModel::updateMatrices();
 
     // TODO: should we do the eigendecomposition ourselves?
+    Eigen::MatrixXd Q = bppToEigen(getGenerator());
+    const Eigen::EigenSolver<Eigen::MatrixXd> decomp(Q);
+    const Eigen::VectorXd eval = decomp.eigenvalues().real();
+    const Eigen::MatrixXd evec = decomp.eigenvectors().real();
+    const Eigen::MatrixXd ievec = evec.inverse();
+
+    const size_t nbStates = getNumberOfStates();
+    for(size_t i = 0; i < nbStates; i++) {
+        eigenValues_[i] = eval(i);
+        for(size_t j = 0; j < nbStates; j++) {
+            // TODO: check order
+            rightEigenVectors_(i, j) = evec(i, j);
+            leftEigenVectors_(i, j) = ievec(i, j);
+        }
+    }
 }
 
 /// Add parameters names NAMESPACE.START_END to model.
@@ -89,38 +121,7 @@ void KmerSubstitutionModel::completeMatrices()
             generator_(i, j) *= scale;
         }
     }
-
-    //bpp::WordSubstitutionModel::completeMatrices();
-    //for(size_t i = 0; i < generator_.getNumberOfRows(); i++) {
-    //    for(size_t j = 0; j < generator_.getNumberOfColumns(); j++) {
-    //        const std::string param = getNamespace() + alphabet_->intToChar(i) + "_" + alphabet_->intToChar(j);
-    //        if(hasParameter(param)) {
-    //            generator_(i, j) += getParameterValue(param);
-    //        }
-    //    }
-    //}
-
-    // Renormalize
-    //for(size_t i = 0; i < generator_.getNumberOfRows(); i++) {
-    //    double scale = 0.0;
-    //    for(size_t j = 0; j < generator_.getNumberOfColumns(); j++) {
-    //        if(i == j)
-    //            continue;
-    //        scale += generator_(i, j);
-    //    }
-    //    scale /= - generator_(i, i);
-    //    std::clog << "Scaling by: " << scale << '\n';
-    //    for(size_t j = 0; j < generator_.getNumberOfColumns(); j++) {
-    //        if(i == j)
-    //            continue;
-    //        generator_(i, j) /= scale;
-    //    }
-    //    scale = 0;
-    //    for(size_t j = 0; i < generator_.getNumberOfColumns(); j++) {
-    //        scale += generator_(i, j);
-    //    }
-    //    assert(std::abs(scale) <= 1e-5 && "Row sum should be 0");
-    //}
+    bpp::WordSubstitutionModel::completeMatrices();
 }
 
 }
