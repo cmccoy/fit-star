@@ -1,17 +1,17 @@
 package mutationio;
 
 message Partition {
+  /* Name of the partition */
   optional string name = 2;
+  /* Matrix of substitution counts, stored as a *row-major* array. */
   repeated uint32 substitution = 1;
 }
 
 message MutationCount {
+  /* Sequence Identifier. */
   optional string name = 1;
+  /* Distance between sequence and germline. */
   optional double distance = 2;
+  /* Partitioned mutation counts */
   repeated Partition partition = 4;
-}
-
-message SubstitutionModel {
-  repeated string parameter_name = 1;
-  repeated double value = 2;
 }

@@ -34,7 +34,6 @@ void protobuf_ShutdownFile_src_2fmutationio_2eproto();
 
 class Partition;
 class MutationCount;
-class SubstitutionModel;
 
 // ===================================================================
 
@@ -244,108 +243,6 @@ class MutationCount : public ::google::protobuf::Message {
   void InitAsDefaultInstance();
   static MutationCount* default_instance_;
 };
-// -------------------------------------------------------------------
-
-class SubstitutionModel : public ::google::protobuf::Message {
- public:
-  SubstitutionModel();
-  virtual ~SubstitutionModel();
-  
-  SubstitutionModel(const SubstitutionModel& from);
-  
-  inline SubstitutionModel& operator=(const SubstitutionModel& from) {
-    CopyFrom(from);
-    return *this;
-  }
-  
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _unknown_fields_;
-  }
-  
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return &_unknown_fields_;
-  }
-  
-  static const ::google::protobuf::Descriptor* descriptor();
-  static const SubstitutionModel& default_instance();
-  
-  void Swap(SubstitutionModel* other);
-  
-  // implements Message ----------------------------------------------
-  
-  SubstitutionModel* New() const;
-  void CopyFrom(const ::google::protobuf::Message& from);
-  void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const SubstitutionModel& from);
-  void MergeFrom(const SubstitutionModel& from);
-  void Clear();
-  bool IsInitialized() const;
-  
-  int ByteSize() const;
-  bool MergePartialFromCodedStream(
-      ::google::protobuf::io::CodedInputStream* input);
-  void SerializeWithCachedSizes(
-      ::google::protobuf::io::CodedOutputStream* output) const;
-  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
-  int GetCachedSize() const { return _cached_size_; }
-  private:
-  void SharedCtor();
-  void SharedDtor();
-  void SetCachedSize(int size) const;
-  public:
-  
-  ::google::protobuf::Metadata GetMetadata() const;
-  
-  // nested types ----------------------------------------------------
-  
-  // accessors -------------------------------------------------------
-  
-  // repeated string parameter_name = 1;
-  inline int parameter_name_size() const;
-  inline void clear_parameter_name();
-  static const int kParameterNameFieldNumber = 1;
-  inline const ::std::string& parameter_name(int index) const;
-  inline ::std::string* mutable_parameter_name(int index);
-  inline void set_parameter_name(int index, const ::std::string& value);
-  inline void set_parameter_name(int index, const char* value);
-  inline void set_parameter_name(int index, const char* value, size_t size);
-  inline ::std::string* add_parameter_name();
-  inline void add_parameter_name(const ::std::string& value);
-  inline void add_parameter_name(const char* value);
-  inline void add_parameter_name(const char* value, size_t size);
-  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& parameter_name() const;
-  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_parameter_name();
-  
-  // repeated double value = 2;
-  inline int value_size() const;
-  inline void clear_value();
-  static const int kValueFieldNumber = 2;
-  inline double value(int index) const;
-  inline void set_value(int index, double value);
-  inline void add_value(double value);
-  inline const ::google::protobuf::RepeatedField< double >&
-      value() const;
-  inline ::google::protobuf::RepeatedField< double >*
-      mutable_value();
-  
-  // @@protoc_insertion_point(class_scope:mutationio.SubstitutionModel)
- private:
-  
-  ::google::protobuf::UnknownFieldSet _unknown_fields_;
-  
-  ::google::protobuf::RepeatedPtrField< ::std::string> parameter_name_;
-  ::google::protobuf::RepeatedField< double > value_;
-  
-  mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
-  
-  friend void  protobuf_AddDesc_src_2fmutationio_2eproto();
-  friend void protobuf_AssignDesc_src_2fmutationio_2eproto();
-  friend void protobuf_ShutdownFile_src_2fmutationio_2eproto();
-  
-  void InitAsDefaultInstance();
-  static SubstitutionModel* default_instance_;
-};
 // ===================================================================
 
 
@@ -543,79 +440,6 @@ MutationCount::partition() const {
 inline ::google::protobuf::RepeatedPtrField< ::mutationio::Partition >*
 MutationCount::mutable_partition() {
   return &partition_;
-}
-
-// -------------------------------------------------------------------
-
-// SubstitutionModel
-
-// repeated string parameter_name = 1;
-inline int SubstitutionModel::parameter_name_size() const {
-  return parameter_name_.size();
-}
-inline void SubstitutionModel::clear_parameter_name() {
-  parameter_name_.Clear();
-}
-inline const ::std::string& SubstitutionModel::parameter_name(int index) const {
-  return parameter_name_.Get(index);
-}
-inline ::std::string* SubstitutionModel::mutable_parameter_name(int index) {
-  return parameter_name_.Mutable(index);
-}
-inline void SubstitutionModel::set_parameter_name(int index, const ::std::string& value) {
-  parameter_name_.Mutable(index)->assign(value);
-}
-inline void SubstitutionModel::set_parameter_name(int index, const char* value) {
-  parameter_name_.Mutable(index)->assign(value);
-}
-inline void SubstitutionModel::set_parameter_name(int index, const char* value, size_t size) {
-  parameter_name_.Mutable(index)->assign(
-    reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* SubstitutionModel::add_parameter_name() {
-  return parameter_name_.Add();
-}
-inline void SubstitutionModel::add_parameter_name(const ::std::string& value) {
-  parameter_name_.Add()->assign(value);
-}
-inline void SubstitutionModel::add_parameter_name(const char* value) {
-  parameter_name_.Add()->assign(value);
-}
-inline void SubstitutionModel::add_parameter_name(const char* value, size_t size) {
-  parameter_name_.Add()->assign(reinterpret_cast<const char*>(value), size);
-}
-inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
-SubstitutionModel::parameter_name() const {
-  return parameter_name_;
-}
-inline ::google::protobuf::RepeatedPtrField< ::std::string>*
-SubstitutionModel::mutable_parameter_name() {
-  return &parameter_name_;
-}
-
-// repeated double value = 2;
-inline int SubstitutionModel::value_size() const {
-  return value_.size();
-}
-inline void SubstitutionModel::clear_value() {
-  value_.Clear();
-}
-inline double SubstitutionModel::value(int index) const {
-  return value_.Get(index);
-}
-inline void SubstitutionModel::set_value(int index, double value) {
-  value_.Set(index, value);
-}
-inline void SubstitutionModel::add_value(double value) {
-  value_.Add(value);
-}
-inline const ::google::protobuf::RepeatedField< double >&
-SubstitutionModel::value() const {
-  return value_;
-}
-inline ::google::protobuf::RepeatedField< double >*
-SubstitutionModel::mutable_value() {
-  return &value_;
 }
 
 
