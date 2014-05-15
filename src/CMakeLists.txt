@@ -41,10 +41,6 @@ add_executable(build-mutation-matrices build_mutation_matrices.cpp)
 target_link_libraries(build-mutation-matrices libstaropt)
 target_link_libraries(build-mutation-matrices boost-programoptions)
 
-# kgt1
-add_executable(fit-kgt1 fit_kgt1.cpp kmer_model.cpp)
-target_link_libraries(fit-kgt1 libstaropt)
-target_link_libraries(fit-kgt1 boost-programoptions)
 
 # model fitting
 add_executable(fit-star fit_star.cpp)
