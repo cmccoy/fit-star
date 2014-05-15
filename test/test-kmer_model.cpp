@@ -21,6 +21,63 @@
 
 using namespace fit_star;
 
+template <typename T>
+void expectMatricesEqual(const bpp::Matrix<T>& x,
+                         const bpp::Matrix<T>& y,
+                         const T tol = 1e-4)
+{
+    ASSERT_EQ(x.getNumberOfRows(), y.getNumberOfRows());
+    ASSERT_EQ(x.getNumberOfColumns(), y.getNumberOfColumns());
+
+    for(size_t i = 0; i < x.getNumberOfRows(); i++) {
+        for(size_t j = 0; j < x.getNumberOfColumns(); j++) {
+            EXPECT_NEAR(x(i, j), y(i, j), tol) << "Matrices differ at (" << i << ", " << j << ")";
+        }
+    }
+}
+
+template <typename T>
+void expectVectorsEqual(const std::vector<T>& x,
+                        const std::vector<T>& y,
+                        const T tol = 1e-4)
+{
+    ASSERT_EQ(x.size(), y.size());
+
+    for(size_t i = 0; i < x.size(); i++) {
+        EXPECT_NEAR(x[i], y[i], tol) << "Vectors differ at " << i;
+    }
+}
+
+class GTRvs1merTest : public ::testing::Test {
+ protected:
+     GTRvs1merTest() :
+         gtrModel(&bpp::AlphabetTools::DNA_ALPHABET),
+         oneWordModel(gtrModel.clone(), 1)
+    {};
+
+  bpp::GTR gtrModel;
+  KmerSubstitutionModel oneWordModel;
+
+  void expectPMatricesEqual(const double t)
+  {
+    std::vector<double> gtrEval = gtrModel.getEigenValues(),
+        oneWordEval = oneWordModel.getEigenValues();
+
+    const bpp::Matrix<double>& gtrLeft = gtrModel.getRowLeftEigenVectors(),
+          &wordLeft = oneWordModel.getRowLeftEigenVectors(),
+          &gtrRight = gtrModel.getColumnRightEigenVectors(),
+          &wordRight = oneWordModel.getColumnRightEigenVectors();
+
+    bpp::RowMatrix<double> pGTR(gtrLeft.getNumberOfRows(), gtrLeft.getNumberOfColumns()),
+        pWord(gtrLeft.getNumberOfRows(), gtrLeft.getNumberOfColumns());
+
+    bpp::MatrixTools::mult(gtrRight, bpp::VectorTools::exp(bpp::operator*(gtrEval, t)), gtrLeft, pGTR);
+    bpp::MatrixTools::mult(wordRight, bpp::VectorTools::exp(bpp::operator*(oneWordEval, t)), wordLeft, pWord);
+
+    expectMatricesEqual(pGTR, pWord);
+  }
+};
+
 double testSimpleLikelihood(bpp::SubstitutionModel* model) {
     bpp::BasicSequence first("A", "ACGGTACCGTAAC", model->getAlphabet()),
                       second("B", "ACTTTGGCGTCAT", model->getAlphabet());
@@ -47,59 +104,39 @@ double testSimpleLikelihood(bpp::SubstitutionModel* model) {
     return calc.getLogLikelihood();
 }
 
-TEST(KmerModel, single_nucleotide_equals_gtr) {
+TEST_F(GTRvs1merTest, compare_likelihood) {
     bpp::GTR gtrModel(&bpp::AlphabetTools::DNA_ALPHABET);
     KmerSubstitutionModel oneWordModel(gtrModel.clone(), 1);
 
     EXPECT_NEAR(testSimpleLikelihood(&gtrModel), testSimpleLikelihood(&oneWordModel), 1e-3) << "Likelihood calculations do not match.";
+}
 
+
+TEST_F(GTRvs1merTest, compare_generators) {
     // Extract Q, exchangeability matrices
     const bpp::Matrix<double>& gtrQ = gtrModel.getGenerator();
     const bpp::Matrix<double>& oneWordQ = oneWordModel.getGenerator();
+    expectMatricesEqual(gtrQ, oneWordQ);
+}
+
+TEST_F(GTRvs1merTest, compare_exchangeability) {
     const bpp::Matrix<double>& gtrExch = gtrModel.getExchangeabilityMatrix();
     const bpp::Matrix<double>& oneWordExch = oneWordModel.getExchangeabilityMatrix();
+    expectMatricesEqual(gtrExch, oneWordExch);
+}
 
-    EXPECT_EQ(gtrQ.getNumberOfRows(), oneWordQ.getNumberOfRows());
-    EXPECT_EQ(gtrQ.getNumberOfColumns(), oneWordQ.getNumberOfColumns());
-    for(size_t i = 0; i < gtrQ.getNumberOfRows(); i++) {
-        for(size_t j = 0; j < gtrQ.getNumberOfColumns(); j++) {
-            EXPECT_NEAR(gtrQ(i, j), oneWordQ(i, j), 1e-4);
-            EXPECT_NEAR(gtrExch(i, j), oneWordExch(i, j), 1e-4);
-        }
-    }
-
-    // Next: eigenvectors, eigenvalues
+TEST_F(GTRvs1merTest, compare_eigenvalues) {
     std::vector<double> gtrEval = gtrModel.getEigenValues(),
         oneWordEval = oneWordModel.getEigenValues();
-
-    const bpp::Matrix<double>& gtrLeft = gtrModel.getRowLeftEigenVectors(),
-          &wordLeft = oneWordModel.getRowLeftEigenVectors(),
-          &gtrRight = gtrModel.getColumnRightEigenVectors(),
-          &wordRight = oneWordModel.getColumnRightEigenVectors();
-
-    bpp::RowMatrix<double> pGTR(gtrLeft.getNumberOfRows(), gtrLeft.getNumberOfColumns()),
-        pWord(gtrLeft.getNumberOfRows(), gtrLeft.getNumberOfColumns());
-
-    bpp::MatrixTools::mult(gtrRight, bpp::VectorTools::exp(bpp::operator*(gtrEval, 0.1)), gtrLeft, pGTR);
-    bpp::MatrixTools::mult(wordRight, bpp::VectorTools::exp(bpp::operator*(oneWordEval, 0.1)), wordLeft, pWord);
-
-    for(size_t i = 0; i < gtrQ.getNumberOfRows(); i++) {
-        for(size_t j = 0; j < gtrQ.getNumberOfColumns(); j++) {
-            EXPECT_NEAR(pGTR(i, j), pWord(i, j), 1e-4);
-        }
-    }
-
-    bpp::MatrixTools::mult(gtrRight, bpp::VectorTools::exp(bpp::operator*(gtrEval, 0.001)), gtrLeft, pGTR);
-    bpp::MatrixTools::mult(wordRight, bpp::VectorTools::exp(bpp::operator*(oneWordEval, 0.001)), wordLeft, pWord);
-
-    for(size_t i = 0; i < gtrQ.getNumberOfRows(); i++) {
-        for(size_t j = 0; j < gtrQ.getNumberOfColumns(); j++) {
-            EXPECT_NEAR(pGTR(i, j), pWord(i, j), 1e-4);
-        }
-    }
-
     std::sort(gtrEval.begin(), gtrEval.end());
     std::sort(oneWordEval.begin(), oneWordEval.end());
-    for(size_t i = 0; i < gtrEval.size(); i++)
-        EXPECT_NEAR(gtrEval[i], oneWordEval[i], 1e-4);
+    expectVectorsEqual(gtrEval, oneWordEval);
+}
+
+TEST_F(GTRvs1merTest, compare_Psmall) {
+    expectPMatricesEqual(0.001);
+}
+
+TEST_F(GTRvs1merTest, compare_P1) {
+    expectPMatricesEqual(1.0);
 }
