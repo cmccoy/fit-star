@@ -58,6 +58,7 @@ void KmerSubstitutionModel::updateMatrices()
         eigenValues_[i] = eval(i);
         for(size_t j = 0; j < nbStates; j++) {
             // TODO: check order
+            std::clog << "Check eigenVector order." << std::endl;
             rightEigenVectors_(i, j) = evec(i, j);
             leftEigenVectors_(i, j) = ievec(i, j);
         }
