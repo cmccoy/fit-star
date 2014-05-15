@@ -23,9 +23,6 @@ const ::google::protobuf::internal::GeneratedMessageReflection*
 const ::google::protobuf::Descriptor* MutationCount_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   MutationCount_reflection_ = NULL;
-const ::google::protobuf::Descriptor* SubstitutionModel_descriptor_ = NULL;
-const ::google::protobuf::internal::GeneratedMessageReflection*
-  SubstitutionModel_reflection_ = NULL;
 
 }  // namespace
 
@@ -69,22 +66,6 @@ void protobuf_AssignDesc_src_2fmutationio_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(MutationCount));
-  SubstitutionModel_descriptor_ = file->message_type(2);
-  static const int SubstitutionModel_offsets_[2] = {
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubstitutionModel, parameter_name_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubstitutionModel, value_),
-  };
-  SubstitutionModel_reflection_ =
-    new ::google::protobuf::internal::GeneratedMessageReflection(
-      SubstitutionModel_descriptor_,
-      SubstitutionModel::default_instance_,
-      SubstitutionModel_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubstitutionModel, _has_bits_[0]),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubstitutionModel, _unknown_fields_),
-      -1,
-      ::google::protobuf::DescriptorPool::generated_pool(),
-      ::google::protobuf::MessageFactory::generated_factory(),
-      sizeof(SubstitutionModel));
 }
 
 namespace {
@@ -101,8 +82,6 @@ void protobuf_RegisterTypes(const ::std::string&) {
     Partition_descriptor_, &Partition::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     MutationCount_descriptor_, &MutationCount::default_instance());
-  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-    SubstitutionModel_descriptor_, &SubstitutionModel::default_instance());
 }
 
 }  // namespace
@@ -112,8 +91,6 @@ void protobuf_ShutdownFile_src_2fmutationio_2eproto() {
   delete Partition_reflection_;
   delete MutationCount::default_instance_;
   delete MutationCount_reflection_;
-  delete SubstitutionModel::default_instance_;
-  delete SubstitutionModel_reflection_;
 }
 
 void protobuf_AddDesc_src_2fmutationio_2eproto() {
@@ -127,16 +104,13 @@ void protobuf_AddDesc_src_2fmutationio_2eproto() {
     "rtition\022\014\n\004name\030\002 \001(\t\022\024\n\014substitution\030\001 "
     "\003(\r\"Y\n\rMutationCount\022\014\n\004name\030\001 \001(\t\022\020\n\010di"
     "stance\030\002 \001(\001\022(\n\tpartition\030\004 \003(\0132\025.mutati"
-    "onio.Partition\":\n\021SubstitutionModel\022\026\n\016p"
-    "arameter_name\030\001 \003(\t\022\r\n\005value\030\002 \003(\001", 234);
+    "onio.Partition", 174);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "src/mutationio.proto", &protobuf_RegisterTypes);
   Partition::default_instance_ = new Partition();
   MutationCount::default_instance_ = new MutationCount();
-  SubstitutionModel::default_instance_ = new SubstitutionModel();
   Partition::default_instance_->InitAsDefaultInstance();
   MutationCount::default_instance_->InitAsDefaultInstance();
-  SubstitutionModel::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::OnShutdown(&protobuf_ShutdownFile_src_2fmutationio_2eproto);
 }
 
@@ -719,260 +693,6 @@ void MutationCount::Swap(MutationCount* other) {
   ::google::protobuf::Metadata metadata;
   metadata.descriptor = MutationCount_descriptor_;
   metadata.reflection = MutationCount_reflection_;
-  return metadata;
-}
-
-
-// ===================================================================
-
-#ifndef _MSC_VER
-const int SubstitutionModel::kParameterNameFieldNumber;
-const int SubstitutionModel::kValueFieldNumber;
-#endif  // !_MSC_VER
-
-SubstitutionModel::SubstitutionModel()
-  : ::google::protobuf::Message() {
-  SharedCtor();
-}
-
-void SubstitutionModel::InitAsDefaultInstance() {
-}
-
-SubstitutionModel::SubstitutionModel(const SubstitutionModel& from)
-  : ::google::protobuf::Message() {
-  SharedCtor();
-  MergeFrom(from);
-}
-
-void SubstitutionModel::SharedCtor() {
-  _cached_size_ = 0;
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-}
-
-SubstitutionModel::~SubstitutionModel() {
-  SharedDtor();
-}
-
-void SubstitutionModel::SharedDtor() {
-  if (this != default_instance_) {
-  }
-}
-
-void SubstitutionModel::SetCachedSize(int size) const {
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-}
-const ::google::protobuf::Descriptor* SubstitutionModel::descriptor() {
-  protobuf_AssignDescriptorsOnce();
-  return SubstitutionModel_descriptor_;
-}
-
-const SubstitutionModel& SubstitutionModel::default_instance() {
-  if (default_instance_ == NULL) protobuf_AddDesc_src_2fmutationio_2eproto();  return *default_instance_;
-}
-
-SubstitutionModel* SubstitutionModel::default_instance_ = NULL;
-
-SubstitutionModel* SubstitutionModel::New() const {
-  return new SubstitutionModel;
-}
-
-void SubstitutionModel::Clear() {
-  parameter_name_.Clear();
-  value_.Clear();
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  mutable_unknown_fields()->Clear();
-}
-
-bool SubstitutionModel::MergePartialFromCodedStream(
-    ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
-  ::google::protobuf::uint32 tag;
-  while ((tag = input->ReadTag()) != 0) {
-    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // repeated string parameter_name = 1;
-      case 1: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-         parse_parameter_name:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->add_parameter_name()));
-          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-            this->parameter_name(0).data(), this->parameter_name(0).length(),
-            ::google::protobuf::internal::WireFormat::PARSE);
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(10)) goto parse_parameter_name;
-        if (input->ExpectTag(17)) goto parse_value;
-        break;
-      }
-      
-      // repeated double value = 2;
-      case 2: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_FIXED64) {
-         parse_value:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadRepeatedPrimitive<
-                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
-                 1, 17, input, this->mutable_value())));
-        } else if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag)
-                   == ::google::protobuf::internal::WireFormatLite::
-                      WIRETYPE_LENGTH_DELIMITED) {
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPackedPrimitiveNoInline<
-                   double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
-                 input, this->mutable_value())));
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(17)) goto parse_value;
-        if (input->ExpectAtEnd()) return true;
-        break;
-      }
-      
-      default: {
-      handle_uninterpreted:
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
-          return true;
-        }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
-        break;
-      }
-    }
-  }
-  return true;
-#undef DO_
-}
-
-void SubstitutionModel::SerializeWithCachedSizes(
-    ::google::protobuf::io::CodedOutputStream* output) const {
-  // repeated string parameter_name = 1;
-  for (int i = 0; i < this->parameter_name_size(); i++) {
-  ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-    this->parameter_name(i).data(), this->parameter_name(i).length(),
-    ::google::protobuf::internal::WireFormat::SERIALIZE);
-    ::google::protobuf::internal::WireFormatLite::WriteString(
-      1, this->parameter_name(i), output);
-  }
-  
-  // repeated double value = 2;
-  for (int i = 0; i < this->value_size(); i++) {
-    ::google::protobuf::internal::WireFormatLite::WriteDouble(
-      2, this->value(i), output);
-  }
-  
-  if (!unknown_fields().empty()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-}
-
-::google::protobuf::uint8* SubstitutionModel::SerializeWithCachedSizesToArray(
-    ::google::protobuf::uint8* target) const {
-  // repeated string parameter_name = 1;
-  for (int i = 0; i < this->parameter_name_size(); i++) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
-      this->parameter_name(i).data(), this->parameter_name(i).length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE);
-    target = ::google::protobuf::internal::WireFormatLite::
-      WriteStringToArray(1, this->parameter_name(i), target);
-  }
-  
-  // repeated double value = 2;
-  for (int i = 0; i < this->value_size(); i++) {
-    target = ::google::protobuf::internal::WireFormatLite::
-      WriteDoubleToArray(2, this->value(i), target);
-  }
-  
-  if (!unknown_fields().empty()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  return target;
-}
-
-int SubstitutionModel::ByteSize() const {
-  int total_size = 0;
-  
-  // repeated string parameter_name = 1;
-  total_size += 1 * this->parameter_name_size();
-  for (int i = 0; i < this->parameter_name_size(); i++) {
-    total_size += ::google::protobuf::internal::WireFormatLite::StringSize(
-      this->parameter_name(i));
-  }
-  
-  // repeated double value = 2;
-  {
-    int data_size = 0;
-    data_size = 8 * this->value_size();
-    total_size += 1 * this->value_size() + data_size;
-  }
-  
-  if (!unknown_fields().empty()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
-  }
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = total_size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-  return total_size;
-}
-
-void SubstitutionModel::MergeFrom(const ::google::protobuf::Message& from) {
-  GOOGLE_CHECK_NE(&from, this);
-  const SubstitutionModel* source =
-    ::google::protobuf::internal::dynamic_cast_if_available<const SubstitutionModel*>(
-      &from);
-  if (source == NULL) {
-    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
-  } else {
-    MergeFrom(*source);
-  }
-}
-
-void SubstitutionModel::MergeFrom(const SubstitutionModel& from) {
-  GOOGLE_CHECK_NE(&from, this);
-  parameter_name_.MergeFrom(from.parameter_name_);
-  value_.MergeFrom(from.value_);
-  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-}
-
-void SubstitutionModel::CopyFrom(const ::google::protobuf::Message& from) {
-  if (&from == this) return;
-  Clear();
-  MergeFrom(from);
-}
-
-void SubstitutionModel::CopyFrom(const SubstitutionModel& from) {
-  if (&from == this) return;
-  Clear();
-  MergeFrom(from);
-}
-
-bool SubstitutionModel::IsInitialized() const {
-  
-  return true;
-}
-
-void SubstitutionModel::Swap(SubstitutionModel* other) {
-  if (other != this) {
-    parameter_name_.Swap(&other->parameter_name_);
-    value_.Swap(&other->value_);
-    std::swap(_has_bits_[0], other->_has_bits_[0]);
-    _unknown_fields_.Swap(&other->_unknown_fields_);
-    std::swap(_cached_size_, other->_cached_size_);
-  }
-}
-
-::google::protobuf::Metadata SubstitutionModel::GetMetadata() const {
-  protobuf_AssignDescriptorsOnce();
-  ::google::protobuf::Metadata metadata;
-  metadata.descriptor = SubstitutionModel_descriptor_;
-  metadata.reflection = SubstitutionModel_reflection_;
   return metadata;
 }
 

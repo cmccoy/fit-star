@@ -93,13 +93,15 @@ void blitMatrixToArray(double* arr, const bpp::Matrix<double>& matrix)
 }
 
 /// \brief calculate the likelihood of a collection of substitutions using an initialized BEAGLE instance.
-double pairLogLikelihood(const int beagleInstance, const Eigen::Matrix4d& substitutions, const double distance)
+double pairLogLikelihood(const int beagleInstance, const Eigen::MatrixXd& substitutions, const double distance)
 {
+    assert(substitutions.rows() == substitutions.cols() &&
+           "Non-square matrix!");
     // Shortcut
     if (substitutions.sum() < 1)
         return 0.0;
 
-    const size_t nStates = 4;
+    const size_t nStates = substitutions.cols();
     std::vector<double> patternWeights;
     patternWeights.reserve(nStates * nStates);
     for(size_t i = 0; i < nStates; i++) {
