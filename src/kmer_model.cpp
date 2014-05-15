@@ -47,7 +47,6 @@ void KmerSubstitutionModel::updateMatrices()
 {
     bpp::WordSubstitutionModel::updateMatrices();
 
-    // TODO: should we do the eigendecomposition ourselves?
     Eigen::MatrixXd Q = bppToEigen(getGenerator());
     const Eigen::EigenSolver<Eigen::MatrixXd> decomp(Q);
     const Eigen::VectorXd eval = decomp.eigenvalues().real();
@@ -64,7 +63,7 @@ void KmerSubstitutionModel::updateMatrices()
     }
 }
 
-/// Add parameters names NAMESPACE.START_END to model.
+/// Add parameters named START_END to model.
 void KmerSubstitutionModel::completeMatrices()
 {
     std::vector<const bpp::Matrix<double>*> subGenerators;
@@ -104,10 +103,10 @@ void KmerSubstitutionModel::completeMatrices()
                 generator_(i, j) = 0.0;
             }
 
-            //const std::string param = getNamespace() + alphabet_->intToChar(i) + "_" + alphabet_->intToChar(j);
-            //if(hasParameter(param)) {
-                //generator_(i, j) += getParameterValue(param);
-            //}
+            const std::string param = getNamespace() + alphabet_->intToChar(i) + "_" + alphabet_->intToChar(j);
+            if(hasParameter(param)) {
+                generator_(i, j) += getParameterValue(param);
+            }
 
             sum += generator_(i, j);
         }
