@@ -39,7 +39,7 @@ target_link_libraries(libstaropt
 # Build mutation matrices
 add_executable(build-mutation-matrices build_mutation_matrices.cpp)
 target_link_libraries(build-mutation-matrices libstaropt)
-target_link_libraries(build-mutation-matrices boost-programoptions)
+target_link_libraries(build-mutation-matrices boost-programoptions boost-iostream)
 
 
 # model fitting

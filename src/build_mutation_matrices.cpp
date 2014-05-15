@@ -15,6 +15,8 @@
 
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/iostreams/filtering_streambuf.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream.h>
@@ -179,12 +181,13 @@ int run_main(int argc, char* argv[])
 
     size_t written = 0;
 
-    std::fstream out(outputPath, std::ios::out | std::ios::trunc | std::ios::binary);
-    protoio::OstreamOutputStream rawOut(&out);
-    protoio::GzipOutputStream zipOut(&rawOut);
-    protoio::ZeroCopyOutputStream* outptr = &rawOut;
+    std::fstream outFile(outputPath, std::ios::out | std::ios::trunc | std::ios::binary);
+    boost::iostreams::filtering_streambuf<boost::iostreams::output> outBuf;
     if(boost::algorithm::ends_with(outputPath, ".gz"))
-        outptr = &zipOut;
+        outBuf.push(boost::iostreams::gzip_compressor());
+    outBuf.push(outFile);
+    std::ostream outStream(&outBuf);
+    protoio::OstreamOutputStream outptr(&outStream);
 
     std::unique_ptr<bpp::Alphabet> alphabet;
     if(wordSize == 0) {
@@ -211,7 +214,7 @@ int run_main(int argc, char* argv[])
             const std::string qname = bam1_qname(*it);
             if((count.has_name() && count.name() != qname) || noGroupByQName) {
                 if(count.has_name() && count.partition_size()) {
-                    writeDelimitedItem(*outptr, count);
+                    writeDelimitedItem(outptr, count);
                     if(count.name() != qname) // new record
                         written++;
                 }
@@ -246,7 +249,7 @@ int run_main(int argc, char* argv[])
         if(maxRecords <= 0 || written < maxRecords) {
             assert(count.has_name() && "Name not set");
             assert(count.partition_size() > 0 && "No partitions");
-            writeDelimitedItem(*outptr, count);
+            writeDelimitedItem(outptr, count);
             written++;
         }
     }
