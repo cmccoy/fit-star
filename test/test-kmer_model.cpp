@@ -49,11 +49,14 @@ void expectVectorsEqual(const std::vector<T>& x,
 }
 
 class GTRvs1merTest : public ::testing::Test {
- protected:
-     GTRvs1merTest() :
-         gtrModel(&bpp::AlphabetTools::DNA_ALPHABET),
-         oneWordModel(gtrModel.clone(), 1)
-    {};
+protected:
+    GTRvs1merTest() :
+        gtrModel(&bpp::AlphabetTools::DNA_ALPHABET),
+        oneWordModel(gtrModel.clone(), 1)
+    {
+        gtrModel.setParameterValue("a", 4);
+        oneWordModel.setParameterValue("1_GTR.a", 4);
+    };
 
   bpp::GTR gtrModel;
   KmerSubstitutionModel oneWordModel;
