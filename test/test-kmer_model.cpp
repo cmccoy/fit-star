@@ -44,7 +44,7 @@ TEST(KmerModel, silly) {
 
 double testHelper(bpp::SubstitutionModel* model) {
     bpp::BasicSequence first("A", "ACGGTACCGTAAC", model->getAlphabet()),
-                      second("B", "ACTGTGGCGTCAT", model->getAlphabet());
+                      second("B", "ACTTTGGCGTCAT", model->getAlphabet());
     bpp::VectorSiteContainer sites(model->getAlphabet());
     sites.addSequence(first);
     sites.addSequence(second);
@@ -73,4 +73,16 @@ TEST(KmerModel, single_nucleotide_equals_gtr) {
     KmerSubstitutionModel oneWordModel(gtrModel.clone(), 1);
 
     EXPECT_NEAR(testHelper(&gtrModel), testHelper(&oneWordModel), 1e-3) << "Likelihood calculations do not match.";
+
+    // Extract Q matrices
+    const bpp::Matrix<double>& gtrQ = gtrModel.getGenerator();
+    const bpp::Matrix<double>& oneWordQ = oneWordModel.getGenerator();
+
+    EXPECT_EQ(gtrQ.getNumberOfRows(), oneWordQ.getNumberOfRows());
+    EXPECT_EQ(gtrQ.getNumberOfColumns(), oneWordQ.getNumberOfColumns());
+    for(size_t i = 0; i < gtrQ.getNumberOfRows(); i++) {
+        for(size_t j = 0; j < gtrQ.getNumberOfColumns(); j++) {
+            EXPECT_NEAR(gtrQ(i, j), oneWordQ(i, j), 1e-3);
+        }
+    }
 }
