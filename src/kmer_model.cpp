@@ -27,8 +27,7 @@ KmerSubstitutionModel::KmerSubstitutionModel(const std::vector<bpp::Substitution
     bpp::AbstractParameterAliasable((st == "") ? "Word." : st),
     bpp::AbstractSubstitutionModel(bpp::AbstractWordSubstitutionModel::extractAlph(modelVector),
                                    (st == "") ? "Word." : st),
-    bpp::WordSubstitutionModel(modelVector, (st == "") ? "Word." : st),
-    k_(modelVector.size())
+    bpp::WordSubstitutionModel(modelVector, (st == "") ? "Word." : st)
 {
     KmerSubstitutionModel::updateMatrices();
 }
@@ -37,16 +36,17 @@ KmerSubstitutionModel::KmerSubstitutionModel(bpp::SubstitutionModel* pmodel, uns
     bpp::AbstractParameterAliasable((st == "") ? "Word." : st),
     bpp::AbstractSubstitutionModel(new bpp::WordAlphabet(pmodel->getAlphabet(), num),
                                    (st == "") ? "Word." : st),
-    bpp::WordSubstitutionModel(pmodel, num, (st == "") ? "Word." : st),
-    k_(num)
+    bpp::WordSubstitutionModel(pmodel, num, (st == "") ? "Word." : st)
 {
     KmerSubstitutionModel::updateMatrices();
 }
 
 void KmerSubstitutionModel::updateMatrices()
 {
+    enableEigenDecomposition(false);
     bpp::WordSubstitutionModel::updateMatrices();
 
+    // Fill in eigendecomposition
     Eigen::MatrixXd Q = bppToEigen(getGenerator());
     const Eigen::EigenSolver<Eigen::MatrixXd> decomp(Q);
     const Eigen::VectorXd eval = decomp.eigenvalues().real();
@@ -66,6 +66,7 @@ void KmerSubstitutionModel::updateMatrices()
 /// Add parameters named START_END to model.
 void KmerSubstitutionModel::completeMatrices()
 {
+    bpp::WordSubstitutionModel::completeMatrices();
     std::vector<const bpp::Matrix<double>*> subGenerators;
     for(const bpp::SubstitutionModel* m : VSubMod_) {
         subGenerators.push_back(&m->getGenerator());
@@ -124,7 +125,6 @@ void KmerSubstitutionModel::completeMatrices()
             generator_(i, j) *= scale;
         }
     }
-    bpp::WordSubstitutionModel::completeMatrices();
 }
 
 }

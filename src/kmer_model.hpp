@@ -22,8 +22,6 @@ public:
 
 protected:
     void completeMatrices() override;
-private:
-    size_t k_;
 };
 }
 

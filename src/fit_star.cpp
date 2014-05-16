@@ -202,25 +202,29 @@ void writeResults(std::ostream& out,
         Json::Value rateNode(Json::objectValue);
         Json::Value parameterNode(Json::objectValue);
         Json::Value piNode(Json::arrayValue);
-        std::unique_ptr<bpp::SubstitutionModel> model(part.second.model->clone());
-        std::unique_ptr<bpp::DiscreteDistribution> r(part.second.rateDist->clone());
+        bpp::SubstitutionModel* model = part.second.model;
+        bpp::DiscreteDistribution* r = part.second.rateDist;
 
+        std::string origNs = model->getNamespace();
         model->setNamespace(model->getName() + ".");
         bpp::ParameterList p = model->getParameters();
         for(size_t i = 0; i < p.size(); i++) {
             parameterNode[p[i].getName()] = p[i].getValue();
         }
+        model->setNamespace(origNs);
 
         modelNode["modelName"] = model->getName();
         modelNode["parameters"] = parameterNode;
 
         rateNode["distribution"] = r->getName();
+        origNs = r->getNamespace();
         r->setNamespace(r->getName() + ".");
         p = r->getParameters();
         //rateNode["name"] = rates.getName();
         for(size_t i = 0; i < p.size(); i++) {
             rateNode[p[i].getName()] = p[i].getValue();
         }
+        r->setNamespace(origNs);
         Json::Value rateRates(Json::arrayValue);
         Json::Value rateProbs(Json::arrayValue);
         for(size_t i = 0; i < r->getNumberOfCategories(); i++) {
