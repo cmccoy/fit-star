@@ -383,7 +383,13 @@ int run_main(const int argc, const char** argv)
 int main(const int argc, const char** argv)
 {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
-    int ret = run_main(argc, argv);
+    int ret;
+    try {
+        ret = run_main(argc, argv);
+    } catch(std::exception& e) {
+        std::clog << "Error: " << e.what() << '\n';
+        ret = 1;
+    }
     google::protobuf::ShutdownProtobufLibrary();
     return ret;
 }

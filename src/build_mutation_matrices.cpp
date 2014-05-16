@@ -94,9 +94,8 @@ int usage(po::options_description& desc)
 }
 
 
-int main(int argc, char* argv[])
+int run_main(const int argc, const char* argv[])
 {
-    GOOGLE_PROTOBUF_VERIFY_VERSION;
 
     std::string fastaPath, outputPath;
     std::vector<std::string> bamPaths;
@@ -197,8 +196,20 @@ int main(int argc, char* argv[])
 
     fai_destroy(fidx);
 
-    google::protobuf::ShutdownProtobufLibrary();
-
     return 0;
 }
 
+
+int main(const int argc, const char* argv[])
+{
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+    int ret;
+    try {
+        ret = run_main(argc, argv);
+    } catch(std::exception& e) {
+        std::clog << "Error: " << e.what() << '\n';
+        ret = 1;
+    }
+    google::protobuf::ShutdownProtobufLibrary();
+    return ret;
+}
