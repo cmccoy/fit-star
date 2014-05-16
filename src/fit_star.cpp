@@ -10,10 +10,11 @@
 #include <json/json.h>
 #include <json/value.h>
 
-#include "fit_star_config.h"
-#include "star_tree_optimizer.hpp"
 #include "aligned_pair.hpp"
+#include "fit_star_config.h"
+#include "kmer_model.hpp"
 #include "protobuf_util.hpp"
+#include "star_tree_optimizer.hpp"
 
 // Beagle
 #include "libhmsbeagle/beagle.h"
@@ -26,6 +27,7 @@
 #include <Bpp/Phyl/Model/Nucleotide/TN93.h>
 #include <Bpp/Phyl/Model/Nucleotide/JCnuc.h>
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
+#include <Bpp/Seq/Alphabet/WordAlphabet.h>
 
 #include <cpplog.hpp>
 
@@ -48,9 +50,12 @@ namespace po = boost::program_options;
 
 cpplog::StdErrLogger logger;
 
-void loadAlignedPairsFromFile(const std::string& file_path, std::vector<fit_star::AlignedPair>& dest)
+void loadAlignedPairsFromFile(const std::string& file_path,
+                              const bpp::Alphabet& alphabet,
+                              std::vector<fit_star::AlignedPair>& dest)
 {
     std::fstream in(file_path, std::ios::binary | std::ios::in);
+    const size_t nbStates = alphabet.getSize();
     for(DelimitedProtocolBufferIterator<mutationio::MutationCount> it(in, true), end; it != end; it++) {
         fit_star::AlignedPair sequence;
         const mutationio::MutationCount& m = *it;
@@ -59,13 +64,17 @@ void loadAlignedPairsFromFile(const std::string& file_path, std::vector<fit_star
         sequence.partitions.resize(m.partition_size());
         for(size_t p = 0; p < sequence.partitions.size(); p++) {
             const mutationio::Partition& partition = m.partition(p);
-            assert(partition.substitution_size() == 16 && "fit-star expects a DNA model.");
+            const size_t subsSize = partition.substitution_size();
+            if(subsSize != alphabet.getSize() * alphabet.getSize()) {
+                LOG_FATAL(logger) << "Invalid substitutions size: " << subsSize << '\n' << partition.DebugString();
+                assert(false);
+            }
             sequence.partitions[p].name = partition.name();
-            sequence.partitions[p].substitutions.resize(4, 4);
+            sequence.partitions[p].substitutions.resize(nbStates, nbStates);
             sequence.partitions[p].substitutions.fill(0);
-            for(size_t i = 0; i < 4; i++)
-                for(size_t j = 0; j < 4; j++)
-                    sequence.partitions[p].substitutions(i, j) = partition.substitution(4 * i + j);
+            for(size_t i = 0; i < nbStates; i++)
+                for(size_t j = 0; j < nbStates; j++)
+                    sequence.partitions[p].substitutions(i, j) = partition.substitution(nbStates * i + j);
         }
 
         sequence.distance = 0.1;
@@ -87,6 +96,11 @@ std::unique_ptr<bpp::SubstitutionModel> substitutionModelForName(const std::stri
         return p(new bpp::TN93(&bpp::AlphabetTools::DNA_ALPHABET));
     else if(upper == "JC")
         return p(new bpp::JCnuc(&bpp::AlphabetTools::DNA_ALPHABET));
+    else if(boost::algorithm::starts_with(upper, "WORD")) {
+        std::string sizeStr(upper.begin() + 4, upper.end());
+        int size = std::stoi(sizeStr);
+        return p(new KmerSubstitutionModel(new bpp::GTR(&bpp::AlphabetTools::DNA_ALPHABET), size));
+    }
     throw std::runtime_error("Unknown model: " + name);
 }
 
@@ -312,13 +326,14 @@ int main(const int argc, const char** argv)
         return 1;
     }
 
+    const std::unique_ptr<bpp::SubstitutionModel> m = substitutionModelForName(modelName);
     std::vector<fit_star::AlignedPair> sequences;
     for(const std::string& path : inputPaths) {
         LOG_INFO(logger) << "Loading from " << path << '\n';
-        loadAlignedPairsFromFile(path, sequences);
+        loadAlignedPairsFromFile(path, *(m->getAlphabet()), sequences);
     }
-
     LOG_INFO(logger) << sequences.size() << " sequences." << '\n';
+
     std::vector<std::unique_ptr<bpp::SubstitutionModel>> models;
     std::vector<std::unique_ptr<bpp::DiscreteDistribution>> rates;
 
