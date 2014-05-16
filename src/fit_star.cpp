@@ -254,10 +254,8 @@ void writeResults(std::ostream& out,
     out << root << '\n';
 }
 
-int main(const int argc, const char** argv)
+int run_main(const int argc, const char** argv)
 {
-    GOOGLE_PROTOBUF_VERIFY_VERSION;
-
     std::string outputPath, modelName = "GTR", rateDistName = "constant";
     std::vector<std::string> inputPaths;
     bool noBranchLengths = false, shareRates = false, shareModels = false, addRate = false, invariant = false, noFixRootFreqs = false;
@@ -379,6 +377,13 @@ int main(const int argc, const char** argv)
     std::ostream outStream(&outBuf);
     writeResults(outStream, partitionModels, sequences, finalLike, rounds, !noBranchLengths);
 
-    google::protobuf::ShutdownProtobufLibrary();
     return 0;
+}
+
+int main(const int argc, const char** argv)
+{
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+    int ret = run_main(argc, argv);
+    google::protobuf::ShutdownProtobufLibrary();
+    return ret;
 }
