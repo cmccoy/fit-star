@@ -5,6 +5,7 @@
 #include "star_tree_optimizer.hpp"
 #include "aligned_pair.hpp"
 #include "log_tricks.hpp"
+#include "eigen_bpp.hpp"
 
 #include <libhmsbeagle/beagle.h>
 
@@ -86,21 +87,6 @@ void checkAgainstBpp(std::vector<AlignedPair>& sequences,
     const double bppLL = calc.getLogLikelihood();
     EXPECT_NEAR(bppLL, starLL, 1e-3) << "Likelihood calculations do not match.";
     logL = starLL;
-}
-
-Eigen::MatrixXd bppToEigen(const bpp::Matrix<double>& m) {
-    Eigen::MatrixXd result(m.getNumberOfRows(), m.getNumberOfColumns());
-    for(size_t i = 0; i < m.getNumberOfRows(); i++)
-        for(size_t j = 0; j < m.getNumberOfColumns(); j++)
-            result(i, j) = m(i, j);
-    return result;
-}
-
-Eigen::VectorXd bppToEigen(const std::vector<double>& v) {
-    Eigen::VectorXd result(v.size());
-    for(size_t i = 0; i < v.size(); i++)
-        result[i] = v[i];
-    return result;
 }
 
 template<typename Scalar>

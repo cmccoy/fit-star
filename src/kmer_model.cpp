@@ -1,4 +1,5 @@
 #include "kmer_model.hpp"
+#include "eigen_bpp.hpp"
 
 #include <Bpp/Seq/Alphabet/WordAlphabet.h>
 #include <Eigen/Dense>
@@ -7,21 +8,6 @@
 #include <stdexcept>
 
 namespace fit_star {
-
-Eigen::MatrixXd bppToEigen(const bpp::Matrix<double>& m) {
-    Eigen::MatrixXd result(m.getNumberOfRows(), m.getNumberOfColumns());
-    for(size_t i = 0; i < m.getNumberOfRows(); i++)
-        for(size_t j = 0; j < m.getNumberOfColumns(); j++)
-            result(i, j) = m(i, j);
-    return result;
-}
-
-Eigen::VectorXd bppToEigen(const std::vector<double>& v) {
-    Eigen::VectorXd result(v.size());
-    for(size_t i = 0; i < v.size(); i++)
-        result[i] = v[i];
-    return result;
-}
 
 KmerSubstitutionModel::KmerSubstitutionModel(const std::vector<bpp::SubstitutionModel*>& modelVector, const std::string& st) :
     bpp::AbstractParameterAliasable((st == "") ? "Word." : st),
@@ -67,9 +53,9 @@ void KmerSubstitutionModel::updateMatrices()
 void KmerSubstitutionModel::completeMatrices()
 {
     bpp::WordSubstitutionModel::completeMatrices();
-    std::vector<const bpp::Matrix<double>*> subGenerators;
+    std::vector<const bpp::Matrix<double>*> subExchangeabilities;
     for(const bpp::SubstitutionModel* m : VSubMod_) {
-        subGenerators.push_back(&m->getGenerator());
+        subExchangeabilities.push_back(&m->getExchangeabilityMatrix());
     }
 
     size_t i, j;
@@ -81,6 +67,7 @@ void KmerSubstitutionModel::completeMatrices()
     const bpp::WordAlphabet* alpha = reinterpret_cast<const bpp::WordAlphabet*>(alphabet_);
 
     for (i = 0; i < nbStates; i++) {
+        // Find which states changed
         const std::vector<int> iState = alpha->getPositions(i);
         double sum = 0;
         for (j = 0; j < nbStates; j++) {
@@ -95,7 +82,7 @@ void KmerSubstitutionModel::completeMatrices()
             if(nDiff == 1) {
                 for(size_t k = 0; k < iState.size(); k++) {
                     if(iState[k] != jState[k]) {
-                        generator_(i, j) = subGenerators[k]->operator()(iState[k], jState[k]);
+                        generator_(i, j) = subExchangeabilities[k]->operator()(iState[k], jState[k]);
                         break;
                     }
                 }

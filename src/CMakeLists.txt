@@ -22,7 +22,8 @@ endif()
 add_library(libstaropt
             mutationio.pb.cc
             star_tree_optimizer.cpp
-            kmer_model.cpp)
+            kmer_model.cpp
+            eigen_bpp.cpp)
 set_target_properties(libstaropt PROPERTIES OUTPUT_NAME staropt)
 target_link_libraries(libstaropt
   protobuf
