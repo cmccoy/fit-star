@@ -65,6 +65,7 @@ void KmerSubstitutionModel::completeMatrices()
     }
 
     const bpp::WordAlphabet* alpha = reinterpret_cast<const bpp::WordAlphabet*>(alphabet_);
+    const std::vector<double> freqs = getFrequencies();
 
     for (i = 0; i < nbStates; i++) {
         // Find which states changed
@@ -86,15 +87,18 @@ void KmerSubstitutionModel::completeMatrices()
                         break;
                     }
                 }
-                generator_(i, j) *= getFrequencies()[j];
+
+                //const std::string param = alphabet_->intToChar(i < j ? i : j) + "_" + alphabet_->intToChar(i < j ? j : i);
+                const std::string param = alphabet_->intToChar(i < j ? i : j) + "_" + alphabet_->intToChar(i < j ? j : i);
+                if(hasParameter(param)) {
+                    generator_(i, j) += getParameterValue(param);
+                }
+
+                generator_(i, j) *= freqs[j];
             } else {
                 generator_(i, j) = 0.0;
             }
 
-            const std::string param = getNamespace() + alphabet_->intToChar(i) + "_" + alphabet_->intToChar(j);
-            if(hasParameter(param)) {
-                generator_(i, j) += getParameterValue(param);
-            }
 
             sum += generator_(i, j);
         }
@@ -104,7 +108,7 @@ void KmerSubstitutionModel::completeMatrices()
     // Scale
     double scale = 0;
     for(i = 0; i < nbStates; i++)
-        scale += getFrequencies()[i] * generator_(i, i);
+        scale += freqs[i] * generator_(i, i);
     scale = -1 / scale;
 
     for(i = 0; i < nbStates; i++) {
@@ -112,6 +116,11 @@ void KmerSubstitutionModel::completeMatrices()
             generator_(i, j) *= scale;
         }
     }
+}
+
+void KmerSubstitutionModel::addParameter(bpp::Parameter *p)
+{
+    this->addParameter_(p);
 }
 
 }

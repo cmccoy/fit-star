@@ -20,6 +20,8 @@ public:
 
     void updateMatrices() override;
 
+    void addParameter(bpp::Parameter *);
+
 protected:
     void completeMatrices() override;
 };

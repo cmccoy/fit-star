@@ -151,7 +151,7 @@ double pairLogLikelihood(const int beagleInstance, const Eigen::MatrixXd& substi
                      &rootIndex,
                      1,
                      &logLike);
-    beagleCheck(returnCode, "rootLogLike");
+    beagleCheck(returnCode, "rootLogLike: " + std::to_string(logLike));
     if (std::isinf(logLike) || std::isnan(logLike)) {
         LOG_FATAL(log) << "Log likelihood: " << logLike << '\n' << substitutions << "\nd=" << distance << '\n';
         throw std::runtime_error("Invalid log likelihood: " + std::to_string(logLike));
@@ -327,6 +327,10 @@ size_t StarTreeOptimizer::optimize()
             if(fitRates_[p.first]) {
                 toFit.includeParameters(r->getIndependentParameters());
             }
+        }
+        for(const std::string& s : toFit.getParameterNames()) {
+            if(boost::algorithm::contains(s, "relrate"))
+                toFit.deleteParameter(s);
         }
 
         const size_t nParam = toFit.size();

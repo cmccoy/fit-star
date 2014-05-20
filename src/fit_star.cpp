@@ -278,6 +278,7 @@ int main(const int argc, const char** argv)
 
     std::string outputPath, modelName = "GTR", rateDistName = "constant";
     std::vector<std::string> inputPaths;
+    std::vector<std::string> additionalParameters;
     bool noBranchLengths = false, shareRates = false, shareModels = false, addRate = false, invariant = false, noFixRootFreqs = false;
     double hky85KappaPrior = -1;
     double gammaAlpha = -1, threshold = 0.5, maxTimePerRound = 30 * 60;
@@ -291,6 +292,8 @@ int main(const int argc, const char** argv)
     ("input-file,i", po::value(&inputPaths)->composing()->required(),
      "input file(s) - output of build-mutation-matrices [required]")
     ("output-file,o", po::value(&outputPath)->required(), "output file [required]")
+    ("add-parameter,p", po::value(&additionalParameters)->composing(),
+     "Additional parameter(s) to fit - only valid for word models")
     ("model,m", po::value(&modelName), "model [default: GTR]")
     ("rate-dist,r", po::value(&rateDistName), "rate distribution [default: constant]")
     ("invariant", po::bool_switch(&invariant), "Include an invariant category")
@@ -355,6 +358,19 @@ int main(const int argc, const char** argv)
                 }
                 partitionModels[p.name] = fit_star::PartitionModel { models.back().get(), rates.back().get() };
             }
+        }
+    }
+    //const bpp::IntervalConstraint c(1e-7, 10.0, true, true);
+    for(const std::string& pName : additionalParameters) {
+        for(const std::unique_ptr<bpp::SubstitutionModel>& model : models) {
+            KmerSubstitutionModel *m = dynamic_cast<KmerSubstitutionModel*>(model.get());
+            if(m == nullptr) {
+                LOG_FATAL(logger) << "Model is not a KmerSubstitutionModel";
+                return 1;
+            }
+
+            m->addParameter(new bpp::Parameter(model->getNamespace() + pName, 1e-6, &bpp::Parameter::R_PLUS_STAR));
+            //m->addParameter(new bpp::Parameter(model->getNamespace() + pName, 1e-6, &c));
         }
     }
 
