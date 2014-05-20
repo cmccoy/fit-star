@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <iostream>
 #include <fstream>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -19,9 +20,6 @@
 #include <boost/iostreams/filter/gzip.hpp>
 
 #include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/io/zero_copy_stream.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/io/gzip_stream.h>
 
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
 #include <Bpp/Seq/Alphabet/WordAlphabet.h>
@@ -142,6 +140,8 @@ int run_main(int argc, char* argv[])
     bool noAmbiguous = false;
     bool byCodon = false;
     bool noGroupByQName = false;
+    bool randomFrame = false;
+    long randomSeed = 0;
     size_t maxRecords = 0, wordSize = 1;
     int prefix = 4;
 
@@ -157,7 +157,9 @@ int run_main(int argc, char* argv[])
     ("input-fasta,f", po::value<std::string>(&fastaPath)->required(), "Path to (indexed) FASTA file")
     ("input-bam,i", po::value(&bamPaths)->composing()->required(), "Path to BAM(s)")
     ("no-group", po::bool_switch(&noGroupByQName), "Do *not* group records by name")
-    ("output-file,o", po::value<std::string>(&outputPath)->required(), "Path to output file");
+    ("output-file,o", po::value<std::string>(&outputPath)->required(), "Path to output file")
+    ("random-frame,r", po::bool_switch(&randomFrame), "Randomize reading frame")
+    ("random-seed,s", po::value<long>(&randomSeed), "Random number seed");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -178,6 +180,9 @@ int run_main(int argc, char* argv[])
         LOG_FATAL(log) << "Failed to load index for " << fastaPath;
         return 1;
     }
+
+    std::mt19937 rng(randomSeed);
+    std::uniform_int_distribution<> frameDis(0, wordSize - 1);
 
     size_t written = 0;
 
@@ -200,6 +205,7 @@ int run_main(int argc, char* argv[])
         alphabet.reset(new bpp::WordAlphabet(&bpp::AlphabetTools::DNA_ALPHABET, wordSize));
     }
 
+    int frame = randomFrame ? frameDis(rng) : 0;
     for(const std::string& bamPath : bamPaths) {
         SamFile in(bamPath);
         SamRecord record;
@@ -219,6 +225,8 @@ int run_main(int argc, char* argv[])
                         written++;
                 }
                 count.Clear();
+                if(randomFrame)
+                    frame = frameDis(rng);
             }
 
             if(!count.has_name()) {
@@ -243,7 +251,7 @@ int run_main(int argc, char* argv[])
                 targetName.resize(prefix);
 
             // TODO: Frame
-            mutationCountOfSequence(count, *it, ref, noAmbiguous, wordSize, 0, *alphabet,
+            mutationCountOfSequence(count, *it, ref, noAmbiguous, wordSize, frame, *alphabet,
                                     targetName, byCodon);
         }
         if(maxRecords <= 0 || written < maxRecords) {
