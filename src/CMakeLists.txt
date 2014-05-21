@@ -1,13 +1,13 @@
 # Protocol buffers
 find_package(Protobuf REQUIRED)
-PROTOBUF_GENERATE_CPP(ProtoSources ProtoHeaders mutationio.proto)
+#PROTOBUF_GENERATE_CPP(ProtoSources ProtoHeaders mutationio.proto)
+get_filename_component(PROTOBUF_LIB_DIR ${PROTOBUF_LIBRARY} PATH)
+set(PROTOBUF_A "${PROTOBUF_LIB_DIR}/libprotobuf.a")
 
 # zlib
 find_package(ZLIB REQUIRED)
 
 # BEAGLE
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(HMS_BEAGLE hmsbeagle-1 REQUIRED)
 include_directories(${HMS_BEAGLE_INCLUDE_DIRS})
 link_directories(${HMS_BEAGLE_LIBRARY_DIRS})
 
@@ -19,12 +19,14 @@ if (OPENMP_FOUND)
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+
 add_library(libstaropt
             mutationio.pb.cc
             star_tree_optimizer.cpp)
 set_target_properties(libstaropt PROPERTIES OUTPUT_NAME staropt)
 target_link_libraries(libstaropt
-  protobuf
+  #protobuf
+  ${PROTOBUF_A}
   ${ZLIB_LIBRARIES}
   c
   pthread
