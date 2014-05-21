@@ -1,6 +1,7 @@
 #ifndef STAROPTIM_STAROPTIM_H
 #define STAROPTIM_STAROPTIM_H
 
+#include <atomic>
 #include <cstdlib>
 #include <memory>
 #include <unordered_map>
@@ -90,6 +91,7 @@ private:
     double maxTime_, minSubsParam_, maxSubsParam_, hky85KappaPrior_;
     bool fixRootFrequencies_;
     std::unordered_map<std::string, bool> fitRates_;
+    std::atomic_ulong likelihoodCalls_;
 };
 
 }

@@ -27,9 +27,9 @@ namespace fit_star
 {
 
 // Constants
-const int REF_BUFFER  = 0;
-const int QRY_BUFFER  = 1;
-const int ROOT_BUFFER = 2;
+constexpr int REF_BUFFER  = 0;
+constexpr int QRY_BUFFER  = 1;
+constexpr int ROOT_BUFFER = 2;
 
 cpplog::StdErrLogger log;
 
@@ -283,7 +283,8 @@ StarTreeOptimizer::StarTreeOptimizer(const std::unordered_map<std::string, Parti
     minSubsParam_(1e-5),
     maxSubsParam_(20.0),
     hky85KappaPrior_(-1.0),
-    fixRootFrequencies_(true)
+    fixRootFrequencies_(true),
+    likelihoodCalls_(0)
 {
     // BEAGLE
     beagleInstances_.resize(1);
@@ -402,7 +403,9 @@ size_t StarTreeOptimizer::optimize()
         estimateBranchLengths();
         logLike = starLikelihood();
 
-        LOG_INFO(log) << "iteration " << iter << " (branch lengths): " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike << '\n';
+        LOG_INFO(log) << "iteration " << iter << " (branch lengths): " << lastLogLike << " ->\t" << logLike << '\t' << logLike - lastLogLike
+            << '\t' << "Likelihood calls: " << likelihoodCalls_.load()
+            << '\n';
 
         anyImproved = anyImproved || std::abs(logLike - lastLogLike) > threshold();
         lastLogLike = logLike;
@@ -459,6 +462,7 @@ double StarTreeOptimizer::starLikelihood(const std::string& partition)
             assert(beagleInstances_[instance_idx].count(partition) > 0 && "No beagle instance for partition.");
             const int instance = beagleInstances_[instance_idx][partition];
             result += pairLogLikelihood(instance, p->substitutions, sequence.distance);
+            likelihoodCalls_++;
         }
     }
     return result;
@@ -478,13 +482,14 @@ void StarTreeOptimizer::estimateBranchLengths()
         AlignedPair& s = sequences_[i];
         std::unordered_map<std::string, int> inst = beagleInstances_[idx];
 
-        auto f = [&inst, &s](const double d) {
+        auto f = [&inst, &s, this](const double d) {
             assert(!std::isnan(d) && "NaN distance?");
             s.distance = d;
             double result = 0.0;
             for(const Partition& p : s.partitions) {
                 assert(inst.count(p.name) > 0 && "Missing partition.");
                 result += pairLogLikelihood(inst[p.name], p.substitutions, s.distance);
+                likelihoodCalls_++;
             }
             return -result;
         };
