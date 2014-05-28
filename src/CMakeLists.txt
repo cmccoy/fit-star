@@ -52,3 +52,7 @@ target_link_libraries(fit-star nlopt)
 
 add_executable(show-mutation-matrices show_mutation_matrices.cpp mutationio.pb.cc)
 target_link_libraries(show-mutation-matrices z c protobuf boost-programoptions)
+
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/build-mutation-matrices
+  ${CMAKE_CURRENT_BINARY_DIR}/fit-star
+  DESTINATION bin)
