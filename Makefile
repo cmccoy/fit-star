@@ -27,6 +27,6 @@ style:
 	        `find src -regextype posix-extended -regex ".*\.[ch]pp$$"`
 
 protoc:
-	protoc src/*.proto --cpp_out=.
+	(cd src && protoc *.proto --cpp_out=.)
 
 .PHONY: all clean style test protoc
